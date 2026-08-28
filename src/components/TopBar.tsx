@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
 import { 
-  Play, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Clock, 
   Search, 
-  SlidersHorizontal, 
-  Layers, 
   ShieldCheck, 
   RotateCcw,
   FastForward,
-  Cpu
+  Play,
+  SlidersHorizontal
 } from 'lucide-react';
 import { DevManifest } from '../types';
-import { MAX_ACTIVE_CONSTRUCTION_RUNS } from '../engine/parallelismEngine';
 
 interface TopBarProps {
   devs: Record<string, DevManifest>;
@@ -29,7 +23,6 @@ interface TopBarProps {
 
 export const TopBar: React.FC<TopBarProps> = ({
   devs,
-  activeSlots,
   onOpenSearch,
   onStepScheduler,
   onSimulateWorkerComplete,
@@ -38,200 +31,156 @@ export const TopBar: React.FC<TopBarProps> = ({
   currentTab,
   onChangeTab
 }) => {
+  const [showDevControls, setShowDevControls] = useState(false);
   const devList: DevManifest[] = Object.values(devs);
-  const passCount = devList.filter(d => d.status === 'PASS').length;
   const runningCount = devList.filter(d => d.status === 'RUNNING').length;
-  const auditingCount = devList.filter(d => d.status === 'AUDITING').length;
   const blockedCount = devList.filter(d => d.status === 'BLOCKED').length;
-  const readyCount = devList.filter(d => d.status === 'READY').length;
-  const activeRunsCount = activeSlots.filter(Boolean).length;
-
   const firstRunning = devList.find(d => d.status === 'RUNNING');
   const firstAuditing = devList.find(d => d.status === 'AUDITING');
 
   return (
-    <header className="h-14 bg-[#0A0A0A] border-b border-[#262626] px-4 flex items-center justify-between select-none shrink-0 z-30 font-sans">
-      {/* Left: Brand + Project Metadata */}
-      <div className="flex items-center space-x-5">
-        {/* YU Logo */}
-        <div className="flex items-center space-x-2.5">
-          <div className="w-7 h-7 bg-white text-black font-black font-mono rounded-sm flex items-center justify-center text-xs shadow-sm tracking-tighter">
-            YU
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold tracking-wider text-white uppercase font-mono">
-              IMPRM WORKBENCH
-            </span>
-            <span className="text-[10px] text-[#A3A3A3] font-mono tracking-tight -mt-0.5">
-              V1.2 • CLAUDE + WORKER ARCH
-            </span>
-          </div>
+    <header className="h-12 bg-[#0B0B0C] border-b border-[rgba(255,255,255,0.075)] px-4 flex items-center justify-between select-none shrink-0 z-30 font-sans">
+      {/* Left: YU Logo + Project & Milestone */}
+      <div className="flex items-center space-x-3.5">
+        {/* Geometric YU Monogram Glyph */}
+        <div className="flex items-center space-x-2">
+          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4l8 9 8-9" />
+            <path d="M12 13v7" />
+            <path d="M7 21h10" />
+          </svg>
+          <span className="font-bold text-sm tracking-tight text-white">YU</span>
         </div>
 
-        <div className="h-5 w-px bg-[#262626]" />
+        <span className="text-[rgba(255,255,255,0.2)] text-xs">/</span>
 
-        {/* Project Info */}
-        <div className="flex items-center space-x-2.5 text-xs">
-          <div className="flex items-center space-x-1.5 bg-[#141414] px-2.5 py-1 rounded-sm border border-[#262626]">
-            <span className="text-[#737373] font-mono text-[10px] uppercase font-bold">PROJECT</span>
-            <span className="font-semibold text-[#E5E5E5] font-mono text-[11px]">Aurora</span>
-          </div>
-          <div className="flex items-center space-x-1.5 bg-[#141414] px-2.5 py-1 rounded-sm border border-[#262626]">
-            <span className="text-[#737373] font-mono text-[10px] uppercase font-bold">MILESTONE</span>
-            <span className="font-semibold text-cyan-400 font-mono text-[11px]">V1.2</span>
-          </div>
-          <div className="flex items-center space-x-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-sm text-[10px] font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            <span className="font-bold">ACTIVE</span>
-          </div>
+        {/* Project Name & Milestone */}
+        <div className="flex items-center space-x-2 text-xs">
+          <span className="font-semibold text-white">Aurora</span>
+          <span className="text-[rgba(255,255,255,0.4)] text-xs">/</span>
+          <span className="font-mono text-[11px] text-[rgba(255,255,255,0.6)]">V1.2</span>
         </div>
-      </div>
 
-      {/* Center: Concurrency Slots & Metrics */}
-      <div className="flex items-center space-x-4">
-        {/* Status Metrics Pills */}
-        <div className="flex items-center space-x-1 text-xs font-mono">
-          <span className="px-2 py-0.5 rounded-sm bg-[#141414] border border-emerald-500/30 text-emerald-400 font-semibold text-[11px]">
-            {passCount + 26} PASS
-          </span>
-          <span className="px-2 py-0.5 rounded-sm bg-[#141414] border border-blue-500/30 text-blue-400 flex items-center space-x-1 text-[11px] font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
-            <span>{runningCount} RUNNING</span>
-          </span>
-          {auditingCount > 0 && (
-            <span className="px-2 py-0.5 rounded-sm bg-[#141414] border border-purple-500/30 text-purple-300 text-[11px] font-semibold">
-              {auditingCount} AUDITING
-            </span>
+        {/* Quiet Indicators: Only Show Active / Abnormal Status */}
+        <div className="flex items-center space-x-2.5 ml-2 pl-3 border-l border-[rgba(255,255,255,0.08)]">
+          {runningCount > 0 && (
+            <div className="flex items-center space-x-1.5 text-xs text-[rgba(255,255,255,0.7)]">
+              <span className="w-2 h-2 rounded-full bg-[#5e9cff] animate-quiet-pulse" />
+              <span>{runningCount} Running</span>
+            </div>
           )}
+
           {blockedCount > 0 && (
-            <span className="px-2 py-0.5 rounded-sm bg-[#141414] border border-red-500/40 text-red-400 font-bold text-[11px]">
-              {blockedCount} BLOCKED
-            </span>
+            <div className="flex items-center space-x-1.5 text-xs text-[#ec6a6a]">
+              <span className="w-2 h-2 rounded-full bg-[#ec6a6a]" />
+              <span className="font-medium">{blockedCount} Blocked</span>
+            </div>
           )}
-          {readyCount > 0 && (
-            <span className="px-2 py-0.5 rounded-sm bg-[#141414] border border-cyan-500/30 text-cyan-400 text-[11px]">
-              {readyCount} READY
-            </span>
-          )}
-        </div>
-
-        <div className="h-5 w-px bg-[#262626]" />
-
-        {/* 4 Concurrent Slots Indicator */}
-        <div className="flex items-center space-x-2 bg-[#141414] px-3 py-1 rounded-sm border border-[#262626]">
-          <div className="flex items-center space-x-1.5 text-xs">
-            <Cpu className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-[#A3A3A3] font-mono text-[10px] font-bold">SLOTS:</span>
-            <span className="font-mono font-bold text-white text-[11px]">
-              {activeRunsCount} / {MAX_ACTIVE_CONSTRUCTION_RUNS}
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-1">
-            {activeSlots.map((nodeId, idx) => (
-              <div
-                key={idx}
-                title={nodeId ? `Slot #${idx + 1}: ${nodeId}` : `Slot #${idx + 1}: IDLE`}
-                className={`w-4 h-4 rounded-xs text-[9px] font-mono flex items-center justify-center font-bold border transition-colors ${
-                  nodeId
-                    ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
-                    : 'bg-[#1C1C1C] text-[#525252] border-[#2E2E2E]'
-                }`}
-              >
-                {idx + 1}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* Right: Search, Interactive Simulation Tools & Navigation */}
-      <div className="flex items-center space-x-3">
-        {/* Global Search Button */}
+      {/* Center: Main View Navigation */}
+      <div className="flex items-center space-x-1 bg-[rgba(255,255,255,0.03)] p-0.5 rounded-xs border border-[rgba(255,255,255,0.06)] text-xs font-sans">
+        <button
+          onClick={() => onChangeTab('graph')}
+          className={`px-3 py-1 rounded-xs transition-colors cursor-pointer text-xs font-medium ${
+            currentTab === 'graph'
+              ? 'bg-[rgba(255,255,255,0.12)] text-white shadow-xs'
+              : 'text-[rgba(255,255,255,0.6)] hover:text-white'
+          }`}
+        >
+          Construction
+        </button>
+        <button
+          onClick={() => onChangeTab('editor')}
+          className={`px-3 py-1 rounded-xs transition-colors cursor-pointer text-xs font-medium ${
+            currentTab === 'editor'
+              ? 'bg-[rgba(255,255,255,0.12)] text-white shadow-xs'
+              : 'text-[rgba(255,255,255,0.6)] hover:text-white'
+          }`}
+        >
+          Editor
+        </button>
+        <button
+          onClick={() => onChangeTab('release')}
+          className={`px-3 py-1 rounded-xs transition-colors cursor-pointer text-xs font-medium flex items-center space-x-1 ${
+            currentTab === 'release'
+              ? 'bg-[rgba(255,255,255,0.12)] text-white shadow-xs'
+              : 'text-[rgba(255,255,255,0.6)] hover:text-white'
+          }`}
+        >
+          <span>Release</span>
+        </button>
+      </div>
+
+      {/* Right: Search, Dev Mode & Actions */}
+      <div className="flex items-center space-x-2">
+        {/* Search */}
         <button
           onClick={onOpenSearch}
-          className="flex items-center space-x-2 bg-[#141414] hover:bg-[#1C1C1C] border border-[#262626] hover:border-[#404040] px-2.5 py-1 rounded-sm text-xs text-[#A3A3A3] transition-colors cursor-pointer"
+          className="flex items-center space-x-2 bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.08)] px-2.5 py-1 rounded-xs text-xs text-[rgba(255,255,255,0.6)] transition-colors cursor-pointer"
         >
-          <Search className="w-3.5 h-3.5 text-[#737373]" />
-          <span className="font-mono text-[11px]">Search (Ctrl+K)</span>
+          <Search className="w-3.5 h-3.5 text-[rgba(255,255,255,0.4)]" />
+          <span className="text-[11px] font-sans">Search</span>
+          <kbd className="text-[9px] font-mono text-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.05)] px-1 rounded-2xs">⌘K</kbd>
         </button>
 
-        {/* Runtime Action Controls */}
-        <div className="flex items-center space-x-1 bg-[#141414] p-0.5 rounded-sm border border-[#262626]">
-          <button
-            onClick={onStepScheduler}
-            title="Step YU DAG Scheduler Tick (Recalculate Ready & Isolation)"
-            className="flex items-center space-x-1 px-2 py-1 bg-[#1C1C1C] hover:bg-[#262626] text-white text-xs rounded-xs font-mono transition-colors cursor-pointer border border-[#2E2E2E]"
-          >
-            <FastForward className="w-3 h-3 text-cyan-400" />
-            <span>Tick</span>
-          </button>
+        {/* Developer Simulation Mode Toggle */}
+        <button
+          onClick={() => setShowDevControls(!showDevControls)}
+          title="Toggle Simulation Controls"
+          className={`p-1.5 rounded-xs border transition-colors cursor-pointer ${
+            showDevControls 
+              ? 'bg-[rgba(255,255,255,0.1)] border-[rgba(255,255,255,0.2)] text-white' 
+              : 'border-transparent text-[rgba(255,255,255,0.4)] hover:text-white'
+          }`}
+        >
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+        </button>
 
-          {firstRunning && (
+        {/* Simulation Controls (Hidden by default, shown when developer mode clicked) */}
+        {showDevControls && (
+          <div className="flex items-center space-x-1 bg-[#18181A] p-0.5 rounded-xs border border-[rgba(255,255,255,0.12)] shadow-lg animate-in fade-in">
             <button
-              onClick={() => onSimulateWorkerComplete(firstRunning.nodeId)}
-              title={`Simulate Worker (Pi+Luna) complete for ${firstRunning.nodeId}`}
-              className="flex items-center space-x-1 px-2 py-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 text-xs rounded-xs font-mono transition-colors cursor-pointer border border-blue-500/30"
+              onClick={onStepScheduler}
+              title="Step YU DAG Scheduler Tick"
+              className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-white text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
             >
-              <Play className="w-3 h-3 text-blue-400" />
-              <span>Fin {firstRunning.nodeId}</span>
+              <FastForward className="w-3 h-3 text-cyan-400" />
+              <span>Tick</span>
             </button>
-          )}
 
-          {firstAuditing && (
+            {firstRunning && (
+              <button
+                onClick={() => onSimulateWorkerComplete(firstRunning.nodeId)}
+                title={`Worker Complete for ${firstRunning.nodeId}`}
+                className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-[#5e9cff] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
+              >
+                <Play className="w-3 h-3" />
+                <span>Fin {firstRunning.nodeId}</span>
+              </button>
+            )}
+
+            {firstAuditing && (
+              <button
+                onClick={() => onSimulateClaudeAudit(firstAuditing.nodeId, 'PASS')}
+                title={`Audit PASS for ${firstAuditing.nodeId}`}
+                className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-[#a487e8] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
+              >
+                <ShieldCheck className="w-3 h-3" />
+                <span>Audit</span>
+              </button>
+            )}
+
             <button
-              onClick={() => onSimulateClaudeAudit(firstAuditing.nodeId, 'PASS')}
-              title={`Simulate Fresh Claude Review PASS for ${firstAuditing.nodeId}`}
-              className="flex items-center space-x-1 px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 text-xs rounded-xs font-mono transition-colors cursor-pointer border border-purple-500/30"
+              onClick={onResetDemo}
+              title="Reset Project"
+              className="p-1 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
             >
-              <ShieldCheck className="w-3 h-3 text-purple-400" />
-              <span>Audit PASS</span>
+              <RotateCcw className="w-3 h-3" />
             </button>
-          )}
-
-          <button
-            onClick={onResetDemo}
-            title="Reset Project State"
-            className="p-1 hover:bg-[#262626] text-[#737373] hover:text-white rounded-xs transition-colors cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-[#141414] p-0.5 rounded-sm border border-[#262626] text-xs font-mono">
-          <button
-            onClick={() => onChangeTab('graph')}
-            className={`px-2.5 py-1 rounded-xs transition-colors cursor-pointer ${
-              currentTab === 'graph'
-                ? 'bg-white text-black font-bold shadow-xs'
-                : 'text-[#A3A3A3] hover:text-white'
-            }`}
-          >
-            Graph
-          </button>
-          <button
-            onClick={() => onChangeTab('editor')}
-            className={`px-2.5 py-1 rounded-xs transition-colors cursor-pointer ${
-              currentTab === 'editor'
-                ? 'bg-white text-black font-bold shadow-xs'
-                : 'text-[#A3A3A3] hover:text-white'
-            }`}
-          >
-            Editor
-          </button>
-          <button
-            onClick={() => onChangeTab('release')}
-            className={`px-2.5 py-1 rounded-xs transition-colors cursor-pointer flex items-center space-x-1 ${
-              currentTab === 'release'
-                ? 'bg-cyan-400 text-black font-bold shadow-xs'
-                : 'text-[#A3A3A3] hover:text-white'
-            }`}
-          >
-            <ShieldCheck className="w-3 h-3" />
-            <span>Release</span>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );

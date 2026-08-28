@@ -35,7 +35,6 @@ import { ReleaseAssurance } from './components/ReleaseAssurance';
 import { YuCopilot } from './components/YuCopilot';
 import { AgentConfigurationDock } from './components/AgentConfigurationDock';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
-import { StatusBar } from './components/StatusBar';
 
 export default function App() {
   // Parallelism State
@@ -346,46 +345,47 @@ export default function App() {
         <main className="flex-1 flex flex-col min-w-0 bg-[#0A0A0A] overflow-hidden">
           {activeTab === 'graph' && (
             <div className="flex-1 flex flex-col h-full overflow-hidden">
-              {/* Graph Sub-Tabs Header */}
-              <div className="h-9 bg-[#0D0D0D] border-b border-[#262626] px-4 flex items-center justify-between shrink-0">
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={() => setGraphSubTab('construction')}
-                    className={`px-3 py-1 text-xs font-mono rounded-xs transition-colors cursor-pointer ${
-                      graphSubTab === 'construction'
-                        ? 'bg-[#1A1A1A] text-white font-bold border border-[#404040]'
-                        : 'text-[#737373] hover:text-[#D4D4D4]'
-                    }`}
-                  >
-                    Construction Graph
-                  </button>
-                  <button
-                    onClick={() => setGraphSubTab('implementation')}
-                    className={`px-3 py-1 text-xs font-mono rounded-xs transition-colors cursor-pointer ${
-                      graphSubTab === 'implementation'
-                        ? 'bg-[#1A1A1A] text-white font-bold border border-[#404040]'
-                        : 'text-[#737373] hover:text-[#D4D4D4]'
-                    }`}
-                  >
-                    Implementation Graph
-                  </button>
-                  <button
-                    onClick={() => setGraphSubTab('planning')}
-                    className={`px-3 py-1 text-xs font-mono rounded-xs transition-colors cursor-pointer ${
-                      graphSubTab === 'planning'
-                        ? 'bg-[#1A1A1A] text-white font-bold border border-[#404040]'
-                        : 'text-[#737373] hover:text-[#D4D4D4]'
-                    }`}
-                  >
-                    Planning Graph
-                  </button>
-                </div>
-
-                <div className="text-[11px] font-mono text-[#737373]">
-                  {graphSubTab === 'construction' && 'Hex Molecular Concurrency & DAG Runtime'}
-                  {graphSubTab === 'implementation' && 'CBM Symbol Network & Call Hierarchy'}
-                  {graphSubTab === 'planning' && 'Requirements & Frozen Contract Bounds'}
-                </div>
+              {/* Graph Sub-Tabs Header (De-buttonized Quiet Tabs with 1px active indicator) */}
+              <div className="h-9 bg-[#0B0B0C] border-b border-[rgba(255,255,255,0.075)] px-4 flex items-center justify-start space-x-6 shrink-0 font-sans">
+                <button
+                  onClick={() => setGraphSubTab('construction')}
+                  className={`h-full relative text-xs transition-colors cursor-pointer flex items-center ${
+                    graphSubTab === 'construction'
+                      ? 'text-white font-medium'
+                      : 'text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.8)]'
+                  }`}
+                >
+                  <span>Construction</span>
+                  {graphSubTab === 'construction' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setGraphSubTab('implementation')}
+                  className={`h-full relative text-xs transition-colors cursor-pointer flex items-center ${
+                    graphSubTab === 'implementation'
+                      ? 'text-white font-medium'
+                      : 'text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.8)]'
+                  }`}
+                >
+                  <span>Implementation</span>
+                  {graphSubTab === 'implementation' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setGraphSubTab('planning')}
+                  className={`h-full relative text-xs transition-colors cursor-pointer flex items-center ${
+                    graphSubTab === 'planning'
+                      ? 'text-white font-medium'
+                      : 'text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.8)]'
+                  }`}
+                >
+                  <span>Planning</span>
+                  {graphSubTab === 'planning' && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white" />
+                  )}
+                </button>
               </div>
 
               {/* Sub-View Render */}
@@ -451,13 +451,6 @@ export default function App() {
         onSelectNode={handleSelectNode}
         onOpenEditorForNode={handleOpenEditorForNode}
         onUpdateCapability={handleUpdateCapability}
-      />
-
-      {/* 4. STATUS BAR */}
-      <StatusBar
-        activeRunsCount={activeRunsCount}
-        blockedCount={blockedCount}
-        passCount={passCount}
       />
 
       {/* Global Search Modal */}

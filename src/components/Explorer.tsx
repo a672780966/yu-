@@ -2,16 +2,11 @@ import React, { useState } from 'react';
 import { 
   Folder, 
   FolderOpen, 
-  FileCode, 
-  FileText, 
+  File, 
   Lock, 
-  Check, 
-  ShieldAlert, 
   Search, 
-  FileJson,
-  Database,
-  Terminal,
-  FileCheck2
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { ProjectFile, DevManifest } from '../types';
 
@@ -36,6 +31,7 @@ export const Explorer: React.FC<ExplorerProps> = ({
     'artifacts': true
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [isScopeExpanded, setIsScopeExpanded] = useState(false);
 
   const toggleFolder = (folderId: string) => {
     setExpandedFolders(prev => ({
@@ -62,21 +58,9 @@ export const Explorer: React.FC<ExplorerProps> = ({
     });
   };
 
-  const getFileIcon = (file: ProjectFile) => {
-    if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
-      return <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
-    }
-    if (file.name.endsWith('.json') || file.name.endsWith('.lock')) {
-      return <FileJson className="w-3.5 h-3.5 text-yellow-500 shrink-0" />;
-    }
-    if (file.name.endsWith('.wasm') || file.name.endsWith('.sql')) {
-      return <Database className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
-    }
-    if (file.name.endsWith('.ts') || file.name.endsWith('.tsx')) {
-      return <FileCode className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
-    }
-    return <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />;
-  };
+  const totalRulesCount = selectedNode 
+    ? (selectedNode.scope.allowed.length + selectedNode.requiredContracts.length + selectedNode.scope.forbidden.length)
+    : 0;
 
   const renderFileTree = (nodes: ProjectFile[], depth = 0) => {
     return (
@@ -88,7 +72,6 @@ export const Explorer: React.FC<ExplorerProps> = ({
 
           const isFolder = node.type === 'folder';
           const isExpanded = expandedFolders[node.id];
-          const isAllowed = isFileAllowed(node.path);
           const isForbidden = isFileForbidden(node.path);
           const isSelected = activeFileId === node.id;
 
@@ -97,15 +80,15 @@ export const Explorer: React.FC<ExplorerProps> = ({
               <div key={node.id} className="select-none">
                 <button
                   onClick={() => toggleFolder(node.id)}
-                  style={{ paddingLeft: `${depth * 12 + 8}px` }}
-                  className="w-full flex items-center space-x-1.5 py-1 px-2 text-xs text-slate-300 hover:bg-[#181d24] hover:text-slate-100 transition-colors text-left font-mono"
+                  style={{ paddingLeft: `${depth * 10 + 8}px` }}
+                  className="w-full flex items-center space-x-1.5 py-1 px-2 text-xs text-[rgba(255,255,255,0.7)] hover:bg-[rgba(255,255,255,0.04)] hover:text-white transition-colors text-left font-mono"
                 >
                   {isExpanded ? (
-                    <FolderOpen className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <FolderOpen className="w-3.5 h-3.5 text-[rgba(255,255,255,0.4)] shrink-0" />
                   ) : (
-                    <Folder className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <Folder className="w-3.5 h-3.5 text-[rgba(255,255,255,0.3)] shrink-0" />
                   )}
-                  <span className="font-semibold">{node.name}</span>
+                  <span className="font-normal text-[11px] truncate">{node.name}</span>
                 </button>
                 {isExpanded && node.children && renderFileTree(node.children, depth + 1)}
               </div>
@@ -116,37 +99,29 @@ export const Explorer: React.FC<ExplorerProps> = ({
             <button
               key={node.id}
               onClick={() => onSelectFile(node)}
-              style={{ paddingLeft: `${depth * 12 + 16}px` }}
+              style={{ paddingLeft: `${depth * 10 + 16}px` }}
               className={`w-full flex items-center justify-between py-1 px-2 text-xs transition-colors text-left font-mono group ${
                 isSelected
-                  ? 'bg-[#1e2633] text-slate-100 font-medium border-l-2 border-blue-500'
+                  ? 'bg-[rgba(255,255,255,0.08)] text-white font-medium border-l border-white'
                   : isForbidden
-                  ? 'text-slate-600 hover:bg-[#14181f] opacity-60'
-                  : isAllowed && selectedNode
-                  ? 'text-slate-200 hover:bg-[#181e26] font-medium'
-                  : 'text-slate-400 hover:bg-[#161b22] hover:text-slate-200'
+                  ? 'text-[rgba(255,255,255,0.3)] hover:bg-[rgba(255,255,255,0.03)]'
+                  : 'text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] hover:text-white'
               }`}
             >
               <div className="flex items-center space-x-1.5 min-w-0 truncate">
-                {getFileIcon(node)}
-                <span className="truncate">{node.name}</span>
+                <File className="w-3.5 h-3.5 text-[rgba(255,255,255,0.35)] shrink-0" />
+                <span className="truncate text-[11px]">{node.name}</span>
               </div>
 
-              <div className="flex items-center space-x-1 shrink-0 ml-2">
+              <div className="flex items-center space-x-1 shrink-0 ml-1.5">
                 {node.isFrozen && (
-                  <span className="text-[10px] px-1 py-0.2 bg-cyan-950 text-cyan-400 border border-cyan-800/40 rounded flex items-center space-x-0.5">
-                    <Lock className="w-2.5 h-2.5" />
-                    <span>FRZ</span>
-                  </span>
+                  <Lock className="w-2.5 h-2.5 text-[rgba(255,255,255,0.4)]" title="Frozen Contract / Spec" />
                 )}
                 {node.status === 'modified' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Modified in active run" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#5e9cff]" title="Modified in active run" />
                 )}
                 {isForbidden && (
-                  <Lock className="w-3 h-3 text-red-500/70" title="Forbidden in current Node scope" />
-                )}
-                {isAllowed && selectedNode && (
-                  <Check className="w-3 h-3 text-emerald-400/80" title="In-Scope for current Node" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#ec6a6a]/60" title="Forbidden in current Node scope" />
                 )}
               </div>
             </button>
@@ -157,62 +132,70 @@ export const Explorer: React.FC<ExplorerProps> = ({
   };
 
   return (
-    <aside className="w-64 bg-[#0D0D0D] border-r border-[#262626] flex flex-col h-full select-none shrink-0 overflow-hidden font-sans">
+    <aside className="w-[228px] bg-[#0B0B0C] border-r border-[rgba(255,255,255,0.075)] flex flex-col h-full select-none shrink-0 overflow-hidden font-sans">
       {/* Explorer Header */}
-      <div className="p-3 border-b border-[#262626] flex items-center justify-between bg-[#0A0A0A]">
-        <div className="flex items-center space-x-2">
-          <span className="text-xs font-bold text-white font-mono tracking-wider">PROJECT EXPLORER</span>
-        </div>
-        <span className="text-[10px] font-mono text-[#737373] bg-[#141414] px-1.5 py-0.5 rounded-sm border border-[#262626]">
+      <div className="px-3 py-2 border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between">
+        <span className="text-xs font-semibold text-[rgba(255,255,255,0.85)]">Files</span>
+        <span className="text-[10px] font-mono text-[rgba(255,255,255,0.4)]">
           src/
         </span>
       </div>
 
       {/* File Search Input */}
-      <div className="p-2 border-b border-[#262626] bg-[#0D0D0D]">
+      <div className="px-2 py-1.5 border-b border-[rgba(255,255,255,0.06)]">
         <div className="relative">
-          <Search className="w-3 h-3 text-[#737373] absolute left-2 top-2" />
+          <Search className="w-3 h-3 text-[rgba(255,255,255,0.35)] absolute left-2 top-2" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Filter files..."
-            className="w-full bg-[#141414] border border-[#262626] focus:border-white rounded-sm pl-7 pr-2 py-1 text-xs text-[#E5E5E5] font-mono placeholder:text-[#525252] outline-none"
+            className="w-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] focus:border-[rgba(255,255,255,0.2)] rounded-xs pl-6 pr-2 py-0.5 text-xs text-[rgba(255,255,255,0.8)] font-mono placeholder:text-[rgba(255,255,255,0.3)] outline-none"
           />
         </div>
       </div>
 
       {/* File Tree View */}
-      <div className="flex-1 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-[#262626]">
+      <div className="flex-1 overflow-y-auto py-1">
         {renderFileTree(files)}
       </div>
 
-      {/* Scope Expression for Current Selected Node */}
-      <div className="border-t border-[#262626] bg-[#0A0A0A] p-3 shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-bold text-[#A3A3A3] font-mono tracking-wider">
-            SCOPE ISOLATION
-          </span>
-          {selectedNode ? (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[#141414] text-blue-400 border border-blue-500/30 rounded-sm font-bold">
-              {selectedNode.nodeId}
-            </span>
+      {/* Collapsible Scope Isolation Bar (32px default, expandable on click) */}
+      <div className="border-t border-[rgba(255,255,255,0.075)] bg-[#111113] shrink-0">
+        <button
+          onClick={() => setIsScopeExpanded(!isScopeExpanded)}
+          className="w-full h-8 px-3 flex items-center justify-between text-xs text-[rgba(255,255,255,0.7)] hover:text-white hover:bg-[rgba(255,255,255,0.03)] transition-colors cursor-pointer"
+        >
+          <div className="flex items-center space-x-1.5 truncate">
+            {selectedNode ? (
+              <>
+                <span className="font-mono text-[11px] font-medium text-white">{selectedNode.nodeId}</span>
+                <span className="text-[11px] text-[rgba(255,255,255,0.4)]">Scope</span>
+                <span className="text-[10px] text-[rgba(255,255,255,0.3)]">·</span>
+                <span className="text-[10px] text-[rgba(255,255,255,0.5)]">{totalRulesCount} rules</span>
+              </>
+            ) : (
+              <span className="text-[11px] text-[rgba(255,255,255,0.4)]">No Scope Selected</span>
+            )}
+          </div>
+          {isScopeExpanded ? (
+            <ChevronDown className="w-3 h-3 text-[rgba(255,255,255,0.4)]" />
           ) : (
-            <span className="text-[10px] text-[#525252] font-mono">No Selection</span>
+            <ChevronRight className="w-3 h-3 text-[rgba(255,255,255,0.4)]" />
           )}
-        </div>
+        </button>
 
-        {selectedNode ? (
-          <div className="space-y-2 text-[11px] font-mono">
+        {/* Expanded Scope Detail Drawer */}
+        {isScopeExpanded && selectedNode && (
+          <div className="px-3 pb-3 pt-1 space-y-2 border-t border-[rgba(255,255,255,0.05)] bg-[#0B0B0C] text-[11px] font-mono animate-in fade-in">
             {/* Allowed Scope */}
             <div>
-              <div className="text-[#737373] text-[10px] mb-0.5 font-semibold flex items-center space-x-1">
-                <Check className="w-3 h-3 text-emerald-400" />
-                <span>ALLOWED (WRITE-SET)</span>
+              <div className="text-[10px] text-[rgba(255,255,255,0.5)] mb-1 font-sans font-medium">
+                Allowed Write-Set
               </div>
-              <div className="space-y-1 pl-4 text-emerald-300 text-[10px]">
+              <div className="space-y-0.5 text-[rgba(255,255,255,0.85)] text-[10px]">
                 {selectedNode.scope.allowed.map((p, idx) => (
-                  <div key={idx} className="truncate bg-[#141414] px-1.5 py-0.5 rounded-sm border border-emerald-500/20">
+                  <div key={idx} className="truncate bg-[rgba(255,255,255,0.03)] px-1.5 py-0.5 rounded-xs border border-[rgba(255,255,255,0.06)]">
                     {p}
                   </div>
                 ))}
@@ -222,15 +205,13 @@ export const Explorer: React.FC<ExplorerProps> = ({
             {/* Required Contract */}
             {selectedNode.requiredContracts.length > 0 && (
               <div>
-                <div className="text-[#737373] text-[10px] mb-0.5 font-semibold flex items-center space-x-1">
-                  <Lock className="w-3 h-3 text-cyan-400" />
-                  <span>CONTRACTS</span>
+                <div className="text-[10px] text-[rgba(255,255,255,0.5)] mb-1 font-sans font-medium">
+                  Contracts
                 </div>
-                <div className="space-y-1 pl-4 text-cyan-300 text-[10px]">
+                <div className="space-y-0.5 text-[rgba(255,255,255,0.85)] text-[10px]">
                   {selectedNode.requiredContracts.map((c, idx) => (
-                    <div key={idx} className="truncate flex items-center space-x-1 bg-[#141414] px-1.5 py-0.5 rounded-sm border border-cyan-500/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                      <span>{c}</span>
+                    <div key={idx} className="truncate bg-[rgba(255,255,255,0.03)] px-1.5 py-0.5 rounded-xs border border-[rgba(255,255,255,0.06)]">
+                      {c}
                     </div>
                   ))}
                 </div>
@@ -240,24 +221,18 @@ export const Explorer: React.FC<ExplorerProps> = ({
             {/* Forbidden Scope */}
             {selectedNode.scope.forbidden.length > 0 && (
               <div>
-                <div className="text-[#737373] text-[10px] mb-0.5 font-semibold flex items-center space-x-1">
-                  <ShieldAlert className="w-3 h-3 text-red-400" />
-                  <span>FORBIDDEN</span>
+                <div className="text-[10px] text-[#ec6a6a]/80 mb-1 font-sans font-medium">
+                  Forbidden
                 </div>
-                <div className="space-y-1 pl-4 text-red-400/80 text-[10px]">
+                <div className="space-y-0.5 text-[rgba(255,255,255,0.6)] text-[10px]">
                   {selectedNode.scope.forbidden.map((f, idx) => (
-                    <div key={idx} className="truncate flex items-center space-x-1 bg-[#141414] px-1.5 py-0.5 rounded-sm border border-red-500/20">
-                      <Lock className="w-2.5 h-2.5 text-red-400" />
-                      <span>{f}</span>
+                    <div key={idx} className="truncate bg-[rgba(236,106,106,0.05)] px-1.5 py-0.5 rounded-xs border border-[rgba(236,106,106,0.15)] text-[#ec6a6a]/90">
+                      {f}
                     </div>
                   ))}
                 </div>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="text-[11px] text-[#525252] italic font-mono text-center py-2">
-            Select a Node in DAG to inspect isolated scope bounds.
           </div>
         )}
       </div>

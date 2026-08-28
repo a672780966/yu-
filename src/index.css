@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+:root {
+  --yu-bg: #0b0b0c;
+  --yu-surface: #111113;
+  --yu-surface-hover: #18181a;
+  --yu-elevated: #1c1c1e;
+
+  --yu-line: rgba(255, 255, 255, 0.075);
+  --yu-line-strong: rgba(255, 255, 255, 0.14);
+
+  --yu-text: rgba(255, 255, 255, 0.94);
+  --yu-text-2: rgba(255, 255, 255, 0.60);
+  --yu-text-3: rgba(255, 255, 255, 0.36);
+
+  --yu-running: #5e9cff;
+  --yu-pass: #55c98b;
+  --yu-review: #d5a94e;
+  --yu-block: #ec6a6a;
+  --yu-audit: #a487e8;
+
+  --yu-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @layer base {
   body {
     margin: 0;
@@ -7,39 +29,44 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background-color: #0a0a0a;
-    color: #e5e5e5;
+    background-color: var(--yu-bg);
+    color: var(--yu-text);
     font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 }
 
-/* Technical Data Grid Utility Styles */
+/* Subtle background grid with 5-8% visibility */
 .tech-grid-bg {
-  background-image: radial-gradient(#262626 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-.tech-grid-dense {
-  background-image: linear-gradient(to right, #171717 1px, transparent 1px),
-                    linear-gradient(to bottom, #171717 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* Custom technical scrollbar */
+/* Smooth quiet running indicator */
+@keyframes quiet-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.animate-quiet-pulse {
+  animation: quiet-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom quiet scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d0d0d;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #404040;
+  background: rgba(255, 255, 255, 0.22);
 }

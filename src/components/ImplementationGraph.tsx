@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Layers, ZoomIn, ZoomOut, RotateCcw, FileCode, Check } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { ImplementationNode } from '../types';
 
 interface ImplementationGraphProps {
-  nodes: ImplementationNode[];
+  nodes?: ImplementationNode[];
   onSelectSymbol?: (symbolName: string) => void;
 }
 
@@ -40,6 +40,7 @@ const IMPLEMENTATION_MOLECULAR_NODES: SymbolMolecularPos[] = [
 
 export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSelectSymbol }) => {
   const [selectedId, setSelectedId] = useState<string>('AuthService');
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 50, y: 15 });
   const [isDragging, setIsDragging] = useState(false);
@@ -63,23 +64,6 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
     setIsDragging(false);
   };
 
-  const getKindVisuals = (kind: ImplementationNode['kind']) => {
-    switch (kind) {
-      case 'controller':
-        return { fill: '#0A1324', stroke: '#3b82f6', text: '#60a5fa', badge: 'CONTROLLER' };
-      case 'service':
-        return { fill: '#140D1E', stroke: '#a855f7', text: '#c084fc', badge: 'SERVICE' };
-      case 'repo':
-        return { fill: '#08160F', stroke: '#10b981', text: '#34d399', badge: 'REPO' };
-      case 'test':
-        return { fill: '#191207', stroke: '#f59e0b', text: '#fbbf24', badge: 'TEST' };
-      case 'type':
-        return { fill: '#0A151C', stroke: '#06b6d4', text: '#22d3ee', badge: 'TYPE' };
-      default:
-        return { fill: '#111111', stroke: '#333333', text: '#737373', badge: 'MODULE' };
-    }
-  };
-
   return (
     <div 
       ref={containerRef}
@@ -87,39 +71,30 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      className="relative w-full h-full bg-[#0A0A0A] overflow-hidden select-none cursor-grab active:cursor-grabbing"
+      className="relative w-full h-full bg-[#0B0B0C] overflow-hidden select-none cursor-grab active:cursor-grabbing"
     >
       {/* Background Engineering Grid */}
-      <div className="absolute inset-0 pointer-events-none tech-grid-bg opacity-30" />
-
-      {/* Header Info */}
-      <div className="absolute top-3 left-3 z-10 flex items-center space-x-2.5 bg-[#141414] backdrop-blur px-3 py-1.5 rounded-sm border border-[#262626] text-xs font-mono">
-        <Layers className="w-3.5 h-3.5 text-purple-400" />
-        <span className="text-[#737373] text-[11px] font-bold">CBM SYMBOL GRAPH:</span>
-        <span className="font-semibold text-white">Hex Closure around {selectedId}</span>
-        <span className="text-[#404040]">|</span>
-        <span className="text-[10px] text-[#A3A3A3]">CALLS • IMPORTS • USES • DEFINES</span>
-      </div>
+      <div className="absolute inset-0 pointer-events-none tech-grid-bg opacity-[0.06]" />
 
       {/* Floating Graph Controls */}
-      <div className="absolute top-3 right-3 flex items-center space-x-1.5 bg-[#141414] backdrop-blur p-1 rounded-sm border border-[#262626] z-20 shadow-md">
+      <div className="absolute top-3 right-3 flex items-center space-x-1 bg-[#111113] p-1 rounded-xs border border-[rgba(255,255,255,0.08)] z-20 shadow-sm">
         <button 
           onClick={() => setZoom(prev => Math.min(prev + 0.15, 2.2))}
-          className="p-1.5 hover:bg-[#262626] text-[#A3A3A3] hover:text-white rounded-xs transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
           title="Zoom In"
         >
           <ZoomIn className="w-3.5 h-3.5" />
         </button>
         <button 
           onClick={() => setZoom(prev => Math.max(prev - 0.15, 0.5))}
-          className="p-1.5 hover:bg-[#262626] text-[#A3A3A3] hover:text-white rounded-xs transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
           title="Zoom Out"
         >
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
         <button 
           onClick={() => { setZoom(1); setPan({ x: 50, y: 15 }); }}
-          className="p-1.5 hover:bg-[#262626] text-[#A3A3A3] hover:text-white rounded-xs transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
           title="Reset View"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -131,17 +106,17 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+          transition: isDragging ? 'none' : 'transform 0.18s cubic-bezier(0.22, 1, 0.36, 1)'
         }}
         className="w-[1000px] h-[600px] relative pointer-events-auto"
       >
         <svg className="w-full h-full pointer-events-auto" viewBox="0 0 1000 600">
           <defs>
-            <marker id="cbm-bond" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-              <polygon points="0,2 7,5 0,8" fill="#a855f7" />
+            <marker id="cbm-focus" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse">
+              <polygon points="0,2 7,5 0,8" fill="rgba(255,255,255,0.6)" />
             </marker>
-            <marker id="cbm-default" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-              <polygon points="0,2 7,5 0,8" fill="#333333" />
+            <marker id="cbm-default" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+              <polygon points="0,2 7,5 0,8" fill="rgba(255,255,255,0.2)" />
             </marker>
           </defs>
 
@@ -151,7 +126,9 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
               const target = IMPLEMENTATION_MOLECULAR_NODES.find(n => n.name === targetName || n.id === targetName);
               if (!target) return null;
 
-              const isHighlighted = selectedId === node.id || selectedId === target.id;
+              const isFocusBond = selectedId === node.id || selectedId === target.id;
+              const isHoverBond = hoveredId === node.id || hoveredId === target.id;
+              const isHighlighted = isFocusBond || isHoverBond;
 
               return (
                 <g key={`${node.id}->${target.id}`}>
@@ -160,9 +137,9 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
                     y1={node.cy}
                     x2={target.cx}
                     y2={target.cy}
-                    stroke={isHighlighted ? '#c084fc' : '#262626'}
-                    strokeWidth={isHighlighted ? 2.5 : 1.5}
-                    markerEnd={isHighlighted ? 'url(#cbm-bond)' : 'url(#cbm-default)'}
+                    stroke={isHighlighted ? 'rgba(255, 255, 255, 0.48)' : 'rgba(255, 255, 255, 0.11)'}
+                    strokeWidth={isHighlighted ? 1.8 : 1.2}
+                    markerEnd={isHighlighted ? 'url(#cbm-focus)' : 'url(#cbm-default)'}
                     className="transition-colors duration-150"
                   />
                 </g>
@@ -173,8 +150,8 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
           {/* Hexagonal Symbols */}
           {IMPLEMENTATION_MOLECULAR_NODES.map(node => {
             const isSelected = selectedId === node.id;
-            const radius = isSelected ? 48 : 36;
-            const visuals = getKindVisuals(node.kind);
+            const isHovered = hoveredId === node.id;
+            const radius = isSelected ? 44 : 36;
             const hexPoints = getHexPoints(node.cx, node.cy, radius);
 
             return (
@@ -184,64 +161,56 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
                   setSelectedId(node.id);
                   onSelectSymbol?.(node.name);
                 }}
+                onMouseEnter={() => setHoveredId(node.id)}
+                onMouseLeave={() => setHoveredId(null)}
                 className="cursor-pointer"
               >
-                {/* Active Focus Outer Ring */}
-                {isSelected && (
-                  <polygon
-                    points={getHexPoints(node.cx, node.cy, radius + 6)}
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeWidth="1.5"
-                    strokeOpacity="0.4"
-                    strokeDasharray="4 3"
-                  />
-                )}
-
                 {/* Hexagon Body */}
                 <polygon
                   points={hexPoints}
-                  fill={visuals.fill}
-                  stroke={isSelected ? '#ffffff' : visuals.stroke}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
+                  fill={isSelected ? 'rgba(255, 255, 255, 0.05)' : isHovered ? 'rgba(255, 255, 255, 0.035)' : 'rgba(255, 255, 255, 0.02)'}
+                  stroke={isSelected ? 'rgba(255, 255, 255, 0.65)' : isHovered ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.14)'}
+                  strokeWidth={isSelected ? 2 : 1.2}
                   className="transition-all duration-150"
                 />
 
-                {/* Inner Symbol Details */}
+                {/* Symbol Kind Badge */}
                 <text
                   x={node.cx}
                   y={node.cy - 10}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill={visuals.text}
-                  fontSize="8"
-                  fontFamily="monospace"
-                  fontWeight="bold"
+                  fill="rgba(255, 255, 255, 0.4)"
+                  fontSize="7.5"
+                  fontFamily="sans-serif"
+                  fontWeight="600"
                 >
-                  {visuals.badge}
+                  {node.kind.toUpperCase()}
                 </text>
 
+                {/* Symbol Name */}
                 <text
                   x={node.cx}
-                  y={node.cy + 3}
+                  y={node.cy + 2}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="#FFFFFF"
-                  fontSize={isSelected ? '11' : '9.5'}
+                  fill={isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.85)'}
+                  fontSize={isSelected ? '10.5' : '9.5'}
                   fontFamily="monospace"
-                  fontWeight="bold"
+                  fontWeight="600"
                 >
                   {node.name.length > 12 ? node.name.substring(0, 11) + '..' : node.name}
                 </text>
 
+                {/* File Path */}
                 <text
                   x={node.cx}
-                  y={node.cy + 15}
+                  y={node.cy + 14}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="#737373"
+                  fill="rgba(255, 255, 255, 0.4)"
                   fontSize="7.5"
-                  fontFamily="sans-serif"
+                  fontFamily="monospace"
                 >
                   {node.file.split('/').pop()}
                 </text>
@@ -253,3 +222,4 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
     </div>
   );
 };
+

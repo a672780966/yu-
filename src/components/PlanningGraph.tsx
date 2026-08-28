@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Compass, ZoomIn, ZoomOut, RotateCcw, Lock, FileQuestion } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { PlanningNode } from '../types';
 
 interface PlanningGraphProps {
-  nodes: PlanningNode[];
+  nodes?: PlanningNode[];
   onSelectNode?: (nodeId: string) => void;
 }
 
@@ -29,17 +29,18 @@ interface PlanningMolecularPos {
 }
 
 const PLANNING_MOLECULAR_NODES: PlanningMolecularPos[] = [
-  { id: 'SPEC-01', title: 'System Security Boundary', category: 'requirement', status: 'frozen', cx: 480, cy: 90, links: ['SPEC-02', 'CONTRACT-AUTH-V1', 'DEV-042'] },
-  { id: 'SPEC-02', title: 'Session Lifecycle RFC', category: 'decision', status: 'frozen', cx: 280, cy: 220, links: ['CONTRACT-AUTH-V1'] },
+  { id: 'SPEC-01', title: 'Security Boundary', category: 'requirement', status: 'frozen', cx: 480, cy: 90, links: ['SPEC-02', 'CONTRACT-AUTH-V1', 'DEV-042'] },
+  { id: 'SPEC-02', title: 'Session RFC', category: 'decision', status: 'frozen', cx: 280, cy: 220, links: ['CONTRACT-AUTH-V1'] },
   { id: 'CONTRACT-AUTH-V1', title: 'Auth Protocol V1.2', category: 'contract', status: 'frozen', cx: 480, cy: 230, links: ['DEV-042', 'DEV-043'] },
-  { id: 'DEV-042', title: 'User Authentication', category: 'dev', status: 'frozen', cx: 480, cy: 370, links: ['DEV-043', 'FUTURE-OAUTH'] },
-  { id: 'DEV-043', title: 'Client Web Workspace', category: 'dev', status: 'draft', cx: 280, cy: 470, links: [] },
-  { id: 'FUTURE-OAUTH', title: 'OAuth2 Provider Sync', category: 'requirement', status: 'planned', cx: 680, cy: 370, links: ['FUTURE-RBAC'] },
-  { id: 'FUTURE-RBAC', title: 'Fine-grained RBAC Policy', category: 'decision', status: 'planned', cx: 680, cy: 490, links: [] }
+  { id: 'DEV-042', title: 'User Auth', category: 'dev', status: 'frozen', cx: 480, cy: 370, links: ['DEV-043', 'FUTURE-OAUTH'] },
+  { id: 'DEV-043', title: 'Client Web UI', category: 'dev', status: 'draft', cx: 280, cy: 470, links: [] },
+  { id: 'FUTURE-OAUTH', title: 'OAuth2 Sync', category: 'requirement', status: 'planned', cx: 680, cy: 370, links: ['FUTURE-RBAC'] },
+  { id: 'FUTURE-RBAC', title: 'RBAC Policy', category: 'decision', status: 'planned', cx: 680, cy: 490, links: [] }
 ];
 
 export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) => {
   const [selectedId, setSelectedId] = useState<string>('CONTRACT-AUTH-V1');
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 50, y: 15 });
   const [isDragging, setIsDragging] = useState(false);
@@ -63,34 +64,6 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
     setIsDragging(false);
   };
 
-  const getNodeVisuals = (category: string, status: 'frozen' | 'draft' | 'planned') => {
-    if (status === 'frozen') {
-      return {
-        fill: '#08171F',
-        stroke: '#0ea5e9',
-        text: '#38bdf8',
-        isDashed: false,
-        badge: 'FROZEN'
-      };
-    }
-    if (status === 'draft') {
-      return {
-        fill: '#141414',
-        stroke: '#525252',
-        text: '#D4D4D4',
-        isDashed: true,
-        badge: 'DRAFT'
-      };
-    }
-    return {
-      fill: '#0F0F0F',
-      stroke: '#333333',
-      text: '#737373',
-      isDashed: true,
-      badge: 'PLANNED'
-    };
-  };
-
   return (
     <div 
       ref={containerRef}
@@ -98,40 +71,30 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      className="relative w-full h-full bg-[#0A0A0A] overflow-hidden select-none cursor-grab active:cursor-grabbing"
+      className="relative w-full h-full bg-[#0B0B0C] overflow-hidden select-none cursor-grab active:cursor-grabbing"
     >
       {/* Background Engineering Grid */}
-      <div className="absolute inset-0 pointer-events-none tech-grid-bg opacity-30" />
-
-      {/* Header Info */}
-      <div className="absolute top-3 left-3 z-10 flex items-center space-x-2.5 bg-[#141414] backdrop-blur px-3 py-1.5 rounded-sm border border-[#262626] text-xs font-mono">
-        <Compass className="w-3.5 h-3.5 text-cyan-400" />
-        <span className="text-[#737373] text-[11px] font-bold">PLANNING SPECIFICATION GRAPH:</span>
-        <span className="text-white font-semibold">Where is the project heading?</span>
-        <span className="text-[#404040]">|</span>
-        <span className="text-[10px] text-cyan-300">Solid: Frozen Fact</span>
-        <span className="text-[10px] text-[#737373]">Dashed: Planned / Future</span>
-      </div>
+      <div className="absolute inset-0 pointer-events-none tech-grid-bg opacity-[0.06]" />
 
       {/* Floating Graph Controls */}
-      <div className="absolute top-3 right-3 flex items-center space-x-1.5 bg-[#141414] backdrop-blur p-1 rounded-sm border border-[#262626] z-20 shadow-md">
+      <div className="absolute top-3 right-3 flex items-center space-x-1 bg-[#111113] p-1 rounded-xs border border-[rgba(255,255,255,0.08)] z-20 shadow-sm">
         <button 
           onClick={() => setZoom(prev => Math.min(prev + 0.15, 2.2))}
-          className="p-1.5 hover:bg-[#262626] text-[#A3A3A3] hover:text-white rounded-xs transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
           title="Zoom In"
         >
           <ZoomIn className="w-3.5 h-3.5" />
         </button>
         <button 
           onClick={() => setZoom(prev => Math.max(prev - 0.15, 0.5))}
-          className="p-1.5 hover:bg-[#262626] text-[#A3A3A3] hover:text-white rounded-xs transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
           title="Zoom Out"
         >
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
         <button 
           onClick={() => { setZoom(1); setPan({ x: 50, y: 15 }); }}
-          className="p-1.5 hover:bg-[#262626] text-[#A3A3A3] hover:text-white rounded-xs transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
           title="Reset View"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -143,17 +106,17 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
-          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
+          transition: isDragging ? 'none' : 'transform 0.18s cubic-bezier(0.22, 1, 0.36, 1)'
         }}
         className="w-[1000px] h-[600px] relative pointer-events-auto"
       >
         <svg className="w-full h-full pointer-events-auto" viewBox="0 0 1000 600">
           <defs>
-            <marker id="plan-bond-frozen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-              <polygon points="0,2 7,5 0,8" fill="#0ea5e9" />
+            <marker id="plan-focus" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse">
+              <polygon points="0,2 7,5 0,8" fill="rgba(255,255,255,0.6)" />
             </marker>
-            <marker id="plan-bond-default" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-              <polygon points="0,2 7,5 0,8" fill="#404040" />
+            <marker id="plan-default" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+              <polygon points="0,2 7,5 0,8" fill="rgba(255,255,255,0.2)" />
             </marker>
           </defs>
 
@@ -164,7 +127,9 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
               if (!target) return null;
 
               const isFrozenBond = node.status === 'frozen' && target.status === 'frozen';
-              const isSelected = selectedId === node.id || selectedId === target.id;
+              const isFocusBond = selectedId === node.id || selectedId === target.id;
+              const isHoverBond = hoveredId === node.id || hoveredId === target.id;
+              const isHighlighted = isFocusBond || isHoverBond;
 
               return (
                 <g key={`${node.id}->${target.id}`}>
@@ -173,10 +138,10 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
                     y1={node.cy}
                     x2={target.cx}
                     y2={target.cy}
-                    stroke={isSelected ? '#38bdf8' : isFrozenBond ? '#0ea5e9' : '#333333'}
-                    strokeWidth={isSelected ? 2.5 : 1.5}
-                    strokeDasharray={isFrozenBond ? undefined : '5 4'}
-                    markerEnd={isFrozenBond ? 'url(#plan-bond-frozen)' : 'url(#plan-bond-default)'}
+                    stroke={isHighlighted ? 'rgba(255, 255, 255, 0.48)' : 'rgba(255, 255, 255, 0.11)'}
+                    strokeWidth={isHighlighted ? 1.8 : 1.2}
+                    strokeDasharray={isFrozenBond ? undefined : '4 4'}
+                    markerEnd={isHighlighted ? 'url(#plan-focus)' : 'url(#plan-default)'}
                     className="transition-colors duration-150"
                   />
                 </g>
@@ -187,8 +152,8 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
           {/* Hexagonal Planning Entities */}
           {PLANNING_MOLECULAR_NODES.map(node => {
             const isSelected = selectedId === node.id;
-            const radius = isSelected ? 48 : 36;
-            const visuals = getNodeVisuals(node.category, node.status);
+            const isHovered = hoveredId === node.id;
+            const radius = isSelected ? 44 : 36;
             const hexPoints = getHexPoints(node.cx, node.cy, radius);
 
             return (
@@ -200,64 +165,55 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
                     onSelectNode?.(node.id);
                   }
                 }}
+                onMouseEnter={() => setHoveredId(node.id)}
+                onMouseLeave={() => setHoveredId(null)}
                 className="cursor-pointer"
               >
-                {/* Active Outer Glow */}
-                {isSelected && (
-                  <polygon
-                    points={getHexPoints(node.cx, node.cy, radius + 6)}
-                    fill="none"
-                    stroke="#ffffff"
-                    strokeWidth="1.5"
-                    strokeOpacity="0.4"
-                    strokeDasharray="4 3"
-                  />
-                )}
-
                 {/* Hexagon Body */}
                 <polygon
                   points={hexPoints}
-                  fill={visuals.fill}
-                  stroke={isSelected ? '#ffffff' : visuals.stroke}
-                  strokeWidth={isSelected ? 2.5 : 1.5}
-                  strokeDasharray={visuals.isDashed ? '4 3' : undefined}
+                  fill={isSelected ? 'rgba(255, 255, 255, 0.05)' : isHovered ? 'rgba(255, 255, 255, 0.035)' : 'rgba(255, 255, 255, 0.02)'}
+                  stroke={isSelected ? 'rgba(255, 255, 255, 0.65)' : isHovered ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.14)'}
+                  strokeWidth={isSelected ? 2 : 1.2}
+                  strokeDasharray={node.status !== 'frozen' ? '4 3' : undefined}
                   className="transition-all duration-150"
                 />
 
                 {/* Category & Status */}
                 <text
                   x={node.cx}
-                  y={node.cy - 12}
+                  y={node.cy - 10}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill={visuals.text}
+                  fill="rgba(255, 255, 255, 0.4)"
                   fontSize="7.5"
-                  fontFamily="monospace"
-                  fontWeight="bold"
+                  fontFamily="sans-serif"
+                  fontWeight="600"
                 >
-                  {node.category.toUpperCase()} • {visuals.badge}
+                  {node.category.toUpperCase()} • {node.status.toUpperCase()}
                 </text>
 
-                {/* Node ID / Title */}
+                {/* Node ID */}
                 <text
                   x={node.cx}
-                  y={node.cy + 1}
+                  y={node.cy + 2}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="#FFFFFF"
-                  fontSize={isSelected ? '10.5' : '9'}
+                  fill={isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.85)'}
+                  fontSize={isSelected ? '10.5' : '9.5'}
                   fontFamily="monospace"
-                  fontWeight="bold"
+                  fontWeight="600"
                 >
                   {node.id}
                 </text>
 
+                {/* Title */}
                 <text
                   x={node.cx}
                   y={node.cy + 14}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="#A3A3A3"
+                  fill="rgba(255, 255, 255, 0.4)"
                   fontSize="7.5"
                   fontFamily="sans-serif"
                 >
@@ -271,3 +227,4 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectNode }) =>
     </div>
   );
 };
+
