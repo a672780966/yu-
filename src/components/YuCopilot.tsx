@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Bot, 
   Send, 
@@ -24,12 +24,40 @@ export const YuCopilot: React.FC<YuCopilotProps> = ({
   onViewEvidence
 }) => {
   const [inputText, setInputText] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = (e: React.FormEvent) => {
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!inputText.trim()) return;
+      onSendMessage(inputText.trim());
+      setInputText('');
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    }
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    // Auto-expand textarea
+    e.target.style.height = 'auto';
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim()) return;
     onSendMessage(inputText.trim());
     setInputText('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   };
 
   return (
@@ -42,34 +70,38 @@ export const YuCopilot: React.FC<YuCopilotProps> = ({
           </div>
           <div>
             <span className="text-xs font-semibold text-white tracking-tight">YU Copilot</span>
-            <span className="text-[10px] text-[rgba(255,255,255,0.4)] block font-sans -mt-0.5">
-              Planner & Decision
-            </span>
           </div>
         </div>
 
+        {/* Current Node Context Pill */}
         {selectedNode && (
-          <span className="text-[10px] font-mono px-2 py-0.5 bg-[rgba(255,255,255,0.04)] text-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.1)] rounded-xs font-medium">
-            {selectedNode.nodeId}
-          </span>
+          <div className="flex items-center space-x-1.5 text-[11px] font-mono px-2 py-0.5 bg-[rgba(255,255,255,0.04)] text-[rgba(255,255,255,0.8)] border border-[rgba(255,255,255,0.08)] rounded-xs">
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              selectedNode.status === 'RUNNING' ? 'bg-[#5e9cff] animate-quiet-pulse' :
+              selectedNode.status === 'BLOCKED' ? 'bg-[#ec6a6a]' :
+              selectedNode.status === 'PASS' ? 'bg-[#55c98b]' :
+              'bg-[rgba(255,255,255,0.3)]'
+            }`} />
+            <span>{selectedNode.nodeId}</span>
+          </div>
         )}
       </div>
 
-      {/* Messages Stream (Seamless vertical thread, flat cards) */}
+      {/* Messages Stream (Quiet thread, cards used only for decision blocks) */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs font-sans scrollbar-thin">
         {messages.map(msg => (
           <div
             key={msg.id}
-            className={`space-y-1.5 pb-3 border-b border-[rgba(255,255,255,0.05)] last:border-0 ${
+            className={`space-y-1.5 pb-3 border-b border-[rgba(255,255,255,0.04)] last:border-0 ${
               msg.sender === 'user'
                 ? 'text-white'
                 : 'text-[rgba(255,255,255,0.85)]'
             }`}
           >
-            {/* Header info */}
+            {/* Sender and Timestamp */}
             <div className="flex items-center justify-between text-[10px] text-[rgba(255,255,255,0.4)] font-mono">
-              <span className="font-semibold uppercase tracking-wider text-[rgba(255,255,255,0.6)]">
-                {msg.sender === 'user' ? 'User' : 'Claude Planner'}
+              <span className="font-medium tracking-wider text-[rgba(255,255,255,0.6)]">
+                {msg.sender === 'user' ? 'User' : 'YU Planner'}
               </span>
               <span>{msg.timestamp}</span>
             </div>
@@ -79,7 +111,7 @@ export const YuCopilot: React.FC<YuCopilotProps> = ({
               {msg.content}
             </div>
 
-            {/* Block Resolution Action (Clean callout with subtle red border) */}
+            {/* Block Resolution Card (High-priority action required) */}
             {msg.blockAction && (
               <div className="mt-3 bg-[rgba(236,106,106,0.04)] p-3 rounded-xs border border-[rgba(236,106,106,0.2)] space-y-2.5">
                 <div className="flex items-center space-x-1.5 text-[#ec6a6a] font-medium text-[11px] font-mono">
@@ -116,7 +148,7 @@ export const YuCopilot: React.FC<YuCopilotProps> = ({
             {msg.evidenceRef && (
               <button
                 onClick={() => onViewEvidence(msg.evidenceRef!.nodeId)}
-                className="mt-2 flex items-center space-x-1.5 text-[11px] text-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] px-2.5 py-1 rounded-xs border border-[rgba(255,255,255,0.1)] transition-colors cursor-pointer"
+                className="mt-2 flex items-center space-x-1.5 text-[11px] text-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] px-2.5 py-1 rounded-xs border border-[rgba(255,255,255,0.08)] transition-colors cursor-pointer"
               >
                 <Eye className="w-3 h-3 text-[rgba(255,255,255,0.5)]" />
                 <span>View Evidence for {msg.evidenceRef.nodeId}</span>
@@ -124,22 +156,26 @@ export const YuCopilot: React.FC<YuCopilotProps> = ({
             )}
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form (Seamless 1px border) */}
-      <form onSubmit={handleSend} className="p-3 bg-[#0B0B0C] border-t border-[rgba(255,255,255,0.075)] shrink-0">
-        <div className="relative flex items-center">
-          <input
-            type="text"
+      {/* Input Area: Auto-growing Textarea */}
+      <form onSubmit={handleSubmit} className="p-3 bg-[#0B0B0C] border-t border-[rgba(255,255,255,0.075)] shrink-0">
+        <div className="relative flex items-end">
+          <textarea
+            ref={textareaRef}
+            rows={2}
             value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            placeholder="Ask Copilot (e.g. why is DEV-044 blocked?)..."
-            className="w-full bg-[#141416] border border-[rgba(255,255,255,0.1)] focus:border-[rgba(255,255,255,0.4)] rounded-xs pl-3 pr-8 py-2 text-xs text-white font-sans placeholder:text-[rgba(255,255,255,0.3)] outline-none transition-colors"
+            onChange={handleTextareaChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask YU about this project…"
+            className="w-full bg-[#141416] border border-[rgba(255,255,255,0.1)] focus:border-[rgba(255,255,255,0.35)] rounded-xs pl-3 pr-8 py-2 text-xs text-white font-sans placeholder:text-[rgba(255,255,255,0.3)] outline-none resize-none leading-relaxed transition-colors"
           />
           <button
             type="submit"
             disabled={!inputText.trim()}
-            className="absolute right-1.5 p-1 bg-white hover:bg-neutral-200 disabled:opacity-20 text-black rounded-xs transition-opacity cursor-pointer"
+            className="absolute right-2 bottom-2.5 p-1 bg-white hover:bg-neutral-200 disabled:opacity-20 text-black rounded-xs transition-opacity cursor-pointer"
+            title="Send (Enter)"
           >
             <Send className="w-3 h-3" />
           </button>

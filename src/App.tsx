@@ -396,6 +396,11 @@ export default function App() {
                     selectedNodeId={selectedNodeId}
                     onSelectNode={handleSelectNode}
                     activeSlots={activeSlots}
+                    onOpenEditor={handleOpenEditorForNode}
+                    onViewEvidence={nodeId => {
+                      setSelectedNodeId(nodeId);
+                      setActiveTab('editor');
+                    }}
                   />
                 )}
 

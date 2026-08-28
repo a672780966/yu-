@@ -6,23 +6,36 @@ import {
   Lock, 
   Search, 
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Layers,
+  FileCode,
+  Package,
+  Cpu
 } from 'lucide-react';
-import { ProjectFile, DevManifest } from '../types';
+import { ProjectFile, DevManifest, ContractItem, ArtifactItem } from '../types';
 
 interface ExplorerProps {
   files: ProjectFile[];
   selectedNode: DevManifest | null;
   activeFileId: string | null;
+  contracts?: Record<string, ContractItem>;
+  artifacts?: Record<string, ArtifactItem>;
+  devs?: Record<string, DevManifest>;
   onSelectFile: (file: ProjectFile) => void;
+  onSelectDev?: (nodeId: string) => void;
 }
 
 export const Explorer: React.FC<ExplorerProps> = ({
   files,
   selectedNode,
   activeFileId,
-  onSelectFile
+  contracts = {},
+  artifacts = {},
+  devs = {},
+  onSelectFile,
+  onSelectDev
 }) => {
+  const [viewMode, setViewMode] = useState<'files' | 'facts'>('files');
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
     'src': true,
     'src-core': true,
@@ -38,15 +51,6 @@ export const Explorer: React.FC<ExplorerProps> = ({
       ...prev,
       [folderId]: !prev[folderId]
     }));
-  };
-
-  // Helper to test if a file path is within allowed scope
-  const isFileAllowed = (filePath: string): boolean => {
-    if (!selectedNode) return true;
-    return selectedNode.scope.allowed.some(pattern => {
-      const cleanPattern = pattern.replace('/**', '').replace('/*', '');
-      return filePath.startsWith(cleanPattern);
-    });
   };
 
   // Helper to test if a file path is forbidden
@@ -131,33 +135,140 @@ export const Explorer: React.FC<ExplorerProps> = ({
     );
   };
 
+  const renderFactsTree = () => {
+    const devList = Object.values(devs) as DevManifest[];
+    const contractList = Object.values(contracts) as ContractItem[];
+    const artifactList = Object.values(artifacts) as ArtifactItem[];
+
+    return (
+      <div className="p-2 space-y-3 text-xs font-sans">
+        {/* DEV Nodes Group */}
+        <div>
+          <div className="flex items-center space-x-1.5 text-[10px] text-[rgba(255,255,255,0.4)] uppercase tracking-wider font-semibold mb-1 px-1">
+            <Layers className="w-3 h-3" />
+            <span>DEV Units ({devList.length})</span>
+          </div>
+          <div className="space-y-0.5">
+            {devList.map(d => (
+              <button
+                key={d.nodeId}
+                onClick={() => onSelectDev?.(d.nodeId)}
+                className={`w-full flex items-center justify-between px-2 py-1 rounded-xs text-[11px] font-mono transition-colors text-left ${
+                  selectedNode?.nodeId === d.nodeId
+                    ? 'bg-[rgba(255,255,255,0.08)] text-white font-medium'
+                    : 'text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.03)] hover:text-white'
+                }`}
+              >
+                <div className="flex items-center space-x-1.5 truncate">
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    d.status === 'PASS' ? 'bg-[#55c98b]' :
+                    d.status === 'RUNNING' ? 'bg-[#5e9cff]' :
+                    d.status === 'BLOCKED' ? 'bg-[#ec6a6a]' :
+                    'bg-[rgba(255,255,255,0.3)]'
+                  }`} />
+                  <span className="truncate">{d.nodeId}</span>
+                </div>
+                <span className="text-[10px] text-[rgba(255,255,255,0.35)] font-sans truncate ml-1">{d.title}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Contracts Group */}
+        <div>
+          <div className="flex items-center space-x-1.5 text-[10px] text-[rgba(255,255,255,0.4)] uppercase tracking-wider font-semibold mb-1 px-1">
+            <FileCode className="w-3 h-3" />
+            <span>Contracts ({contractList.length})</span>
+          </div>
+          <div className="space-y-0.5">
+            {contractList.map(c => (
+              <div
+                key={c.id}
+                className="flex items-center justify-between px-2 py-1 rounded-xs text-[11px] font-mono text-[rgba(255,255,255,0.7)] hover:bg-[rgba(255,255,255,0.03)]"
+              >
+                <div className="flex items-center space-x-1.5 truncate">
+                  <Lock className="w-2.5 h-2.5 text-[rgba(255,255,255,0.4)] shrink-0" />
+                  <span className="truncate">{c.name}</span>
+                </div>
+                <span className="text-[10px] text-[rgba(255,255,255,0.35)]">{c.version}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Artifacts Group */}
+        <div>
+          <div className="flex items-center space-x-1.5 text-[10px] text-[rgba(255,255,255,0.4)] uppercase tracking-wider font-semibold mb-1 px-1">
+            <Package className="w-3 h-3" />
+            <span>Artifacts ({artifactList.length})</span>
+          </div>
+          <div className="space-y-0.5">
+            {artifactList.map(a => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between px-2 py-1 rounded-xs text-[11px] font-mono text-[rgba(255,255,255,0.7)] hover:bg-[rgba(255,255,255,0.03)]"
+              >
+                <span className="truncate">{a.name}</span>
+                <span className="text-[10px] text-[rgba(255,255,255,0.35)]">{a.size}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <aside className="w-[228px] bg-[#0B0B0C] border-r border-[rgba(255,255,255,0.075)] flex flex-col h-full select-none shrink-0 overflow-hidden font-sans">
-      {/* Explorer Header */}
+      {/* Explorer Header: Files / Facts Toggle */}
       <div className="px-3 py-2 border-b border-[rgba(255,255,255,0.06)] flex items-center justify-between">
-        <span className="text-xs font-semibold text-[rgba(255,255,255,0.85)]">Files</span>
+        <div className="flex items-center space-x-3 text-xs">
+          <button
+            onClick={() => setViewMode('files')}
+            className={`transition-colors cursor-pointer ${
+              viewMode === 'files'
+                ? 'font-semibold text-white'
+                : 'text-[rgba(255,255,255,0.45)] hover:text-white'
+            }`}
+          >
+            Files
+          </button>
+          <span className="text-[rgba(255,255,255,0.2)]">/</span>
+          <button
+            onClick={() => setViewMode('facts')}
+            className={`transition-colors cursor-pointer ${
+              viewMode === 'facts'
+                ? 'font-semibold text-white'
+                : 'text-[rgba(255,255,255,0.45)] hover:text-white'
+            }`}
+          >
+            Facts
+          </button>
+        </div>
         <span className="text-[10px] font-mono text-[rgba(255,255,255,0.4)]">
-          src/
+          {viewMode === 'files' ? 'src/' : 'Facts DB'}
         </span>
       </div>
 
       {/* File Search Input */}
-      <div className="px-2 py-1.5 border-b border-[rgba(255,255,255,0.06)]">
-        <div className="relative">
-          <Search className="w-3 h-3 text-[rgba(255,255,255,0.35)] absolute left-2 top-2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Filter files..."
-            className="w-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] focus:border-[rgba(255,255,255,0.2)] rounded-xs pl-6 pr-2 py-0.5 text-xs text-[rgba(255,255,255,0.8)] font-mono placeholder:text-[rgba(255,255,255,0.3)] outline-none"
-          />
+      {viewMode === 'files' && (
+        <div className="px-2 py-1.5 border-b border-[rgba(255,255,255,0.06)]">
+          <div className="relative">
+            <Search className="w-3 h-3 text-[rgba(255,255,255,0.35)] absolute left-2 top-2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Filter files..."
+              className="w-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.06)] focus:border-[rgba(255,255,255,0.2)] rounded-xs pl-6 pr-2 py-0.5 text-xs text-[rgba(255,255,255,0.8)] font-mono placeholder:text-[rgba(255,255,255,0.3)] outline-none"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* File Tree View */}
+      {/* Tree View Body */}
       <div className="flex-1 overflow-y-auto py-1">
-        {renderFileTree(files)}
+        {viewMode === 'files' ? renderFileTree(files) : renderFactsTree()}
       </div>
 
       {/* Collapsible Scope Isolation Bar (32px default, expandable on click) */}

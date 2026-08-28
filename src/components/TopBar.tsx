@@ -8,6 +8,7 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { DevManifest } from '../types';
+import { YuLogo } from './YuLogo';
 
 interface TopBarProps {
   devs: Record<string, DevManifest>;
@@ -40,38 +41,31 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <header className="h-12 bg-[#0B0B0C] border-b border-[rgba(255,255,255,0.075)] px-4 flex items-center justify-between select-none shrink-0 z-30 font-sans">
-      {/* Left: YU Logo + Project & Milestone */}
-      <div className="flex items-center space-x-3.5">
-        {/* Geometric YU Monogram Glyph */}
-        <div className="flex items-center space-x-2">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 4l8 9 8-9" />
-            <path d="M12 13v7" />
-            <path d="M7 21h10" />
-          </svg>
-          <span className="font-bold text-sm tracking-tight text-white">YU</span>
+      {/* Left: Official YU Master Monogram + Project & Milestone */}
+      <div className="flex items-center space-x-3">
+        {/* Brand Icon: Flat YU Logo */}
+        <div className="flex items-center space-x-2 text-white">
+          <YuLogo size={16} variant="flat" />
         </div>
 
-        <span className="text-[rgba(255,255,255,0.2)] text-xs">/</span>
-
-        {/* Project Name & Milestone */}
-        <div className="flex items-center space-x-2 text-xs">
+        {/* Project & Milestone Hierarchy */}
+        <div className="flex items-center space-x-1.5 text-xs">
           <span className="font-semibold text-white">Aurora</span>
-          <span className="text-[rgba(255,255,255,0.4)] text-xs">/</span>
+          <span className="text-[rgba(255,255,255,0.3)] text-xs">/</span>
           <span className="font-mono text-[11px] text-[rgba(255,255,255,0.6)]">V1.2</span>
         </div>
 
-        {/* Quiet Indicators: Only Show Active / Abnormal Status */}
+        {/* Quiet Active & Abnormal Status Badges */}
         <div className="flex items-center space-x-2.5 ml-2 pl-3 border-l border-[rgba(255,255,255,0.08)]">
           {runningCount > 0 && (
-            <div className="flex items-center space-x-1.5 text-xs text-[rgba(255,255,255,0.7)]">
+            <div className="flex items-center space-x-1.5 text-xs text-[rgba(255,255,255,0.7)] font-sans">
               <span className="w-2 h-2 rounded-full bg-[#5e9cff] animate-quiet-pulse" />
               <span>{runningCount} Running</span>
             </div>
           )}
 
           {blockedCount > 0 && (
-            <div className="flex items-center space-x-1.5 text-xs text-[#ec6a6a]">
+            <div className="flex items-center space-x-1.5 text-xs text-[#ec6a6a] font-sans">
               <span className="w-2 h-2 rounded-full bg-[#ec6a6a]" />
               <span className="font-medium">{blockedCount} Blocked</span>
             </div>
@@ -79,7 +73,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
 
-      {/* Center: Main View Navigation */}
+      {/* Center: Primary Navigation (Graph / Editor / Release) */}
       <div className="flex items-center space-x-1 bg-[rgba(255,255,255,0.03)] p-0.5 rounded-xs border border-[rgba(255,255,255,0.06)] text-xs font-sans">
         <button
           onClick={() => onChangeTab('graph')}
@@ -89,7 +83,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               : 'text-[rgba(255,255,255,0.6)] hover:text-white'
           }`}
         >
-          Construction
+          Graph
         </button>
         <button
           onClick={() => onChangeTab('editor')}
@@ -113,9 +107,9 @@ export const TopBar: React.FC<TopBarProps> = ({
         </button>
       </div>
 
-      {/* Right: Search, Dev Mode & Actions */}
+      {/* Right: Search, Dev Mode & Simulation Controls */}
       <div className="flex items-center space-x-2">
-        {/* Search */}
+        {/* Quick Search */}
         <button
           onClick={onOpenSearch}
           className="flex items-center space-x-2 bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.08)] px-2.5 py-1 rounded-xs text-xs text-[rgba(255,255,255,0.6)] transition-colors cursor-pointer"
@@ -125,10 +119,10 @@ export const TopBar: React.FC<TopBarProps> = ({
           <kbd className="text-[9px] font-mono text-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.05)] px-1 rounded-2xs">⌘K</kbd>
         </button>
 
-        {/* Developer Simulation Mode Toggle */}
+        {/* Developer Mode Simulation Toggle */}
         <button
           onClick={() => setShowDevControls(!showDevControls)}
-          title="Toggle Simulation Controls"
+          title="Toggle Developer Simulation Mode"
           className={`p-1.5 rounded-xs border transition-colors cursor-pointer ${
             showDevControls 
               ? 'bg-[rgba(255,255,255,0.1)] border-[rgba(255,255,255,0.2)] text-white' 
@@ -138,7 +132,7 @@ export const TopBar: React.FC<TopBarProps> = ({
           <SlidersHorizontal className="w-3.5 h-3.5" />
         </button>
 
-        {/* Simulation Controls (Hidden by default, shown when developer mode clicked) */}
+        {/* Simulation Controls (Hidden by default, shown in Developer Mode) */}
         {showDevControls && (
           <div className="flex items-center space-x-1 bg-[#18181A] p-0.5 rounded-xs border border-[rgba(255,255,255,0.12)] shadow-lg animate-in fade-in">
             <button
@@ -153,7 +147,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             {firstRunning && (
               <button
                 onClick={() => onSimulateWorkerComplete(firstRunning.nodeId)}
-                title={`Worker Complete for ${firstRunning.nodeId}`}
+                title={`Simulate Worker Complete for ${firstRunning.nodeId}`}
                 className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-[#5e9cff] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
               >
                 <Play className="w-3 h-3" />
@@ -164,7 +158,7 @@ export const TopBar: React.FC<TopBarProps> = ({
             {firstAuditing && (
               <button
                 onClick={() => onSimulateClaudeAudit(firstAuditing.nodeId, 'PASS')}
-                title={`Audit PASS for ${firstAuditing.nodeId}`}
+                title={`Simulate Audit PASS for ${firstAuditing.nodeId}`}
                 className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-[#a487e8] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
               >
                 <ShieldCheck className="w-3 h-3" />
@@ -174,7 +168,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
             <button
               onClick={onResetDemo}
-              title="Reset Project"
+              title="Reset Demo State"
               className="p-1 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
