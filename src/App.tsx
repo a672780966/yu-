@@ -74,12 +74,12 @@ export default function App() {
     }));
   };
 
-  const handleConfirmDev = (nodeId: string, confirmed: boolean) => {
-    const target = devs[nodeId];
+  const handleConfirmDev = (nodeId: string, confirmed: boolean, fullDraft?: DevManifest) => {
+    const target = fullDraft || devs[nodeId];
     if (!target) return;
 
     const nextStatus = confirmed ? 'WAITING' : 'DRAFT';
-    const updated = {
+    const updated: DevManifest = {
       ...target,
       isConfirmed: confirmed,
       status: nextStatus,
@@ -98,6 +98,18 @@ export default function App() {
     setActiveSlots(nextState.activeSlots);
     setSchedulerLogs(nextState.logs);
   };
+
+  // Global Keyboard listener for Ctrl+K / Cmd+K search
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Step DAG Scheduler
   const handleStepScheduler = () => {

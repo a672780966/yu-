@@ -6,6 +6,19 @@
   --yu-surface-hover: #18181a;
   --yu-elevated: #1c1c1e;
 
+  --yu-u: 4px;
+  --yu-hit-sm: 28px;
+  --yu-hit-md: 32px;
+  --yu-hit-lg: 36px;
+
+  --yu-rail: 1px;
+  --yu-rail-focus: 1.5px;
+
+  --yu-dot: 5px;
+  --yu-dot-focus: 6px;
+
+  --yu-radius: 2px;
+
   --yu-line: rgba(255, 255, 255, 0.075);
   --yu-line-strong: rgba(255, 255, 255, 0.14);
 
@@ -19,6 +32,9 @@
   --yu-block: #ec6a6a;
   --yu-audit: #a487e8;
 
+  --yu-motion-fast: 100ms;
+  --yu-motion: 180ms;
+  --yu-motion-panel: 220ms;
   --yu-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -36,20 +52,30 @@
   }
 }
 
-/* Subtle background grid with 5-8% visibility */
+/* Subtle background grid on 24px Macro Grid */
 .tech-grid-bg {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.065) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
-/* Smooth quiet running indicator (1.8 - 2.2s gentle pulse) */
+/* Tabular data format */
+.yu-data {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Precision Quiet Pulse: Strictly opacity shift (1.0 -> 0.48), 0% scale change */
 @keyframes quiet-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.92); }
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.48;
+  }
 }
 
 .animate-quiet-pulse {
-  animation: quiet-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation: quiet-pulse 2000ms cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 /* Custom quiet scrollbar */

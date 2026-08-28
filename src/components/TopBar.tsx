@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   Search, 
-  ShieldCheck, 
   RotateCcw,
   FastForward,
   Play,
@@ -41,92 +40,87 @@ export const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <header className="h-12 bg-[#0B0B0C] border-b border-[rgba(255,255,255,0.075)] px-4 flex items-center justify-between select-none shrink-0 z-30 font-sans">
-      {/* Left: Official YU Master Monogram + Project & Milestone */}
-      <div className="flex items-center space-x-3">
-        {/* Brand Icon: Flat YU Logo */}
+      {/* Left: Brand Monogram + Hierarchy + Active Status */}
+      <div className="flex items-center space-x-3.5">
+        {/* Brand Icon: 16px Flat YU Logo */}
         <div className="flex items-center space-x-2 text-white">
           <YuLogo size={16} variant="flat" />
         </div>
 
         {/* Project & Milestone Hierarchy */}
         <div className="flex items-center space-x-1.5 text-xs">
-          <span className="font-semibold text-white">Aurora</span>
-          <span className="text-[rgba(255,255,255,0.3)] text-xs">/</span>
+          <span className="font-semibold text-white tracking-tight">Aurora</span>
+          <span className="text-[rgba(255,255,255,0.25)]">/</span>
           <span className="font-mono text-[11px] text-[rgba(255,255,255,0.6)]">V1.2</span>
         </div>
 
-        {/* Quiet Active & Abnormal Status Badges */}
-        <div className="flex items-center space-x-2.5 ml-2 pl-3 border-l border-[rgba(255,255,255,0.08)]">
+        {/* Quiet Running & Blocked Diagnostics (5px dots, tabular nums) */}
+        <div className="flex items-center space-x-3 ml-2 pl-3 border-l border-[rgba(255,255,255,0.08)]">
           {runningCount > 0 && (
-            <div className="flex items-center space-x-1.5 text-xs text-[rgba(255,255,255,0.7)] font-sans">
-              <span className="w-2 h-2 rounded-full bg-[#5e9cff] animate-quiet-pulse" />
+            <div className="flex items-center space-x-1.5 text-xs text-[rgba(255,255,255,0.75)] yu-data">
+              <span className="w-[5px] h-[5px] rounded-full bg-[#5e9cff] animate-quiet-pulse" />
               <span>{runningCount} Running</span>
             </div>
           )}
 
           {blockedCount > 0 && (
-            <div className="flex items-center space-x-1.5 text-xs text-[#ec6a6a] font-sans">
-              <span className="w-2 h-2 rounded-full bg-[#ec6a6a]" />
+            <div className="flex items-center space-x-1.5 text-xs text-[#ec6a6a] yu-data">
+              <span className="w-[5px] h-[5px] rounded-full bg-[#ec6a6a]" />
               <span className="font-medium">{blockedCount} Blocked</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Center: Primary Navigation (Graph / Editor / Release) */}
-      <div className="flex items-center space-x-1 bg-[rgba(255,255,255,0.03)] p-0.5 rounded-xs border border-[rgba(255,255,255,0.06)] text-xs font-sans">
-        <button
-          onClick={() => onChangeTab('graph')}
-          className={`px-3 py-1 rounded-xs transition-colors cursor-pointer text-xs font-medium ${
-            currentTab === 'graph'
-              ? 'bg-[rgba(255,255,255,0.12)] text-white shadow-xs'
-              : 'text-[rgba(255,255,255,0.6)] hover:text-white'
-          }`}
-        >
-          Graph
-        </button>
-        <button
-          onClick={() => onChangeTab('editor')}
-          className={`px-3 py-1 rounded-xs transition-colors cursor-pointer text-xs font-medium ${
-            currentTab === 'editor'
-              ? 'bg-[rgba(255,255,255,0.12)] text-white shadow-xs'
-              : 'text-[rgba(255,255,255,0.6)] hover:text-white'
-          }`}
-        >
-          Editor
-        </button>
-        <button
-          onClick={() => onChangeTab('release')}
-          className={`px-3 py-1 rounded-xs transition-colors cursor-pointer text-xs font-medium flex items-center space-x-1 ${
-            currentTab === 'release'
-              ? 'bg-[rgba(255,255,255,0.12)] text-white shadow-xs'
-              : 'text-[rgba(255,255,255,0.6)] hover:text-white'
-          }`}
-        >
-          <span>Release</span>
-        </button>
+      {/* Center: Precision Navigation with YU Rail Indicator */}
+      <div className="flex items-center h-full space-x-1 font-sans">
+        {(
+          [
+            { id: 'graph', label: 'Graph' },
+            { id: 'editor', label: 'Editor' },
+            { id: 'release', label: 'Release' }
+          ] as const
+        ).map(tab => {
+          const isActive = currentTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => onChangeTab(tab.id)}
+              className={`h-full px-4 text-xs font-medium transition-colors cursor-pointer flex items-center relative ${
+                isActive
+                  ? 'text-white'
+                  : 'text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.85)]'
+              }`}
+            >
+              <span>{tab.label}</span>
+              {isActive && (
+                <span className="absolute bottom-0 left-2 right-2 h-[1.5px] bg-white rounded-t-xs" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Right: Search, Dev Mode & Simulation Controls */}
+      {/* Right: Search (32px), Dev Simulation Controls */}
       <div className="flex items-center space-x-2">
         {/* Quick Search */}
         <button
           onClick={onOpenSearch}
-          className="flex items-center space-x-2 bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] border border-[rgba(255,255,255,0.08)] px-2.5 py-1 rounded-xs text-xs text-[rgba(255,255,255,0.6)] transition-colors cursor-pointer"
+          className="h-8 flex items-center space-x-2 bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] active:bg-[rgba(255,255,255,0.09)] border border-[rgba(255,255,255,0.08)] px-3 rounded-xs text-xs text-[rgba(255,255,255,0.6)] transition-colors cursor-pointer"
         >
           <Search className="w-3.5 h-3.5 text-[rgba(255,255,255,0.4)]" />
           <span className="text-[11px] font-sans">Search</span>
-          <kbd className="text-[9px] font-mono text-[rgba(255,255,255,0.3)] bg-[rgba(255,255,255,0.05)] px-1 rounded-2xs">⌘K</kbd>
+          <kbd className="text-[9px] font-mono text-[rgba(255,255,255,0.35)] bg-[rgba(255,255,255,0.06)] px-1 py-0.5 rounded-2xs yu-data">Ctrl K</kbd>
         </button>
 
-        {/* Developer Mode Simulation Toggle */}
+        {/* Developer Mode Simulation Toggle (32×32px) */}
         <button
           onClick={() => setShowDevControls(!showDevControls)}
           title="Toggle Developer Simulation Mode"
-          className={`p-1.5 rounded-xs border transition-colors cursor-pointer ${
+          className={`w-8 h-8 flex items-center justify-center rounded-xs border transition-colors cursor-pointer ${
             showDevControls 
               ? 'bg-[rgba(255,255,255,0.1)] border-[rgba(255,255,255,0.2)] text-white' 
-              : 'border-transparent text-[rgba(255,255,255,0.4)] hover:text-white'
+              : 'border-transparent text-[rgba(255,255,255,0.4)] hover:text-white hover:bg-[rgba(255,255,255,0.04)]'
           }`}
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -134,11 +128,11 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Simulation Controls (Hidden by default, shown in Developer Mode) */}
         {showDevControls && (
-          <div className="flex items-center space-x-1 bg-[#18181A] p-0.5 rounded-xs border border-[rgba(255,255,255,0.12)] shadow-lg animate-in fade-in">
+          <div className="flex items-center space-x-1 bg-[#18181A] p-0.5 rounded-xs border border-[rgba(255,255,255,0.12)] shadow-lg animate-in fade-in h-8">
             <button
               onClick={onStepScheduler}
               title="Step YU DAG Scheduler Tick"
-              className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-white text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
+              className="h-7 flex items-center space-x-1 px-2 hover:bg-[rgba(255,255,255,0.08)] text-white text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
             >
               <FastForward className="w-3 h-3 text-cyan-400" />
               <span>Tick</span>
@@ -148,7 +142,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               <button
                 onClick={() => onSimulateWorkerComplete(firstRunning.nodeId)}
                 title={`Simulate Worker Complete for ${firstRunning.nodeId}`}
-                className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-[#5e9cff] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
+                className="h-7 flex items-center space-x-1 px-2 hover:bg-[rgba(255,255,255,0.08)] text-[#5e9cff] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
               >
                 <Play className="w-3 h-3" />
                 <span>Fin {firstRunning.nodeId}</span>
@@ -158,18 +152,17 @@ export const TopBar: React.FC<TopBarProps> = ({
             {firstAuditing && (
               <button
                 onClick={() => onSimulateClaudeAudit(firstAuditing.nodeId, 'PASS')}
-                title={`Simulate Audit PASS for ${firstAuditing.nodeId}`}
-                className="flex items-center space-x-1 px-2 py-0.5 hover:bg-[rgba(255,255,255,0.08)] text-[#a487e8] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
+                title={`Simulate Claude Audit Pass for ${firstAuditing.nodeId}`}
+                className="h-7 flex items-center space-x-1 px-2 hover:bg-[rgba(255,255,255,0.08)] text-[#55c98b] text-[11px] rounded-xs font-mono transition-colors cursor-pointer"
               >
-                <ShieldCheck className="w-3 h-3" />
-                <span>Audit</span>
+                <span>Audit Pass</span>
               </button>
             )}
 
             <button
               onClick={onResetDemo}
-              title="Reset Demo State"
-              className="p-1 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
+              title="Reset State"
+              className="h-7 p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
             </button>

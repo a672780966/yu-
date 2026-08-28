@@ -17,7 +17,7 @@ interface DevEditorProps {
   node: DevManifest;
   contracts: Record<string, ContractItem>;
   onUpdateDev: (updated: DevManifest) => void;
-  onConfirmDev: (nodeId: string, confirmed: boolean) => void;
+  onConfirmDev: (nodeId: string, confirmed: boolean, fullDraft?: DevManifest) => void;
 }
 
 export const DevEditor: React.FC<DevEditorProps> = ({
@@ -68,14 +68,14 @@ export const DevEditor: React.FC<DevEditorProps> = ({
     
     // Always persist latest draft before confirming
     const willConfirm = !draft.isConfirmed;
-    const finalDraft = {
+    const finalDraft: DevManifest = {
       ...draft,
       isConfirmed: willConfirm,
       status: willConfirm ? (draft.status === 'DRAFT' ? 'READY' : draft.status) : 'DRAFT'
     };
     
     onUpdateDev(finalDraft);
-    onConfirmDev(node.nodeId, willConfirm);
+    onConfirmDev(node.nodeId, willConfirm, finalDraft);
     setDraft(finalDraft);
     setHasUnsavedChanges(false);
     setSaveStatus('saved');

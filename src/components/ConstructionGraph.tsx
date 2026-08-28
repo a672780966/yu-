@@ -1,17 +1,23 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
-  ZoomIn, 
-  ZoomOut, 
-  RotateCcw,
-  ExternalLink,
-  Eye,
-  FileCode,
-  CheckCircle2,
-  Calendar,
-  Layers,
-  ArrowRight
+  ExternalLink, 
+  Eye, 
+  Lock, 
+  Layers
 } from 'lucide-react';
 import { DevManifest, NodeStatus } from '../types';
+import { 
+  GRAPH_CANVAS_WIDTH, 
+  GRAPH_CANVAS_HEIGHT, 
+  CONSTRUCTION_POSITIONS, 
+  RADIUS_MAIN_DEV, 
+  RADIUS_FOCUS_DEV, 
+  RADIUS_SUPPORT, 
+  RADIUS_HIT_TARGET, 
+  getHexPoints, 
+  computeBondEndpoints 
+} from '../engine/graphGeometry';
+import { GraphViewport } from './GraphViewport';
 
 interface ConstructionGraphProps {
   devs: Record<string, DevManifest>;
@@ -21,41 +27,6 @@ interface ConstructionGraphProps {
   onOpenEditor?: (nodeId: string) => void;
   onViewEvidence?: (nodeId: string) => void;
 }
-
-// Deterministic molecular network layout coordinates
-interface MolecularNodePos {
-  id: string;
-  cx: number;
-  cy: number;
-  type: 'dev' | 'contract' | 'artifact';
-  label: string;
-  subLabel?: string;
-}
-
-const MOLECULAR_POSITIONS: Record<string, MolecularNodePos> = {
-  // Level 1: Root System
-  'DEV-039': { id: 'DEV-039', cx: 500, cy: 90, type: 'dev', label: 'DEV-039', subLabel: 'Scaffold' },
-  
-  // Level 2: Architecture & Foundation
-  'DEV-040': { id: 'DEV-040', cx: 330, cy: 220, type: 'dev', label: 'DEV-040', subLabel: 'Core Protocol' },
-  'DEV-045': { id: 'DEV-045', cx: 670, cy: 220, type: 'dev', label: 'DEV-045', subLabel: 'Audit Pipeline' },
-  'DEV-044': { id: 'DEV-044', cx: 860, cy: 220, type: 'dev', label: 'DEV-044', subLabel: 'External Sync' },
-  
-  // Intermediary Supporting Molecular Entities (Contracts & Artifacts)
-  'CONTRACT-AUTH': { id: 'CONTRACT-AUTH', cx: 330, cy: 340, type: 'contract', label: 'Auth Contract', subLabel: 'V1.2' },
-  'ARTIFACT-WASM': { id: 'ARTIFACT-WASM', cx: 160, cy: 450, type: 'artifact', label: 'Wasm Bin', subLabel: 'Artifact' },
-  'ARTIFACT-RECEIPTS': { id: 'ARTIFACT-RECEIPTS', cx: 820, cy: 340, type: 'artifact', label: 'Receipts', subLabel: 'Signed' },
-
-  // Level 3: Active Construction Tier
-  'DEV-041': { id: 'DEV-041', cx: 160, cy: 340, type: 'dev', label: 'DEV-041', subLabel: 'Wasm Runtime' },
-  'DEV-042': { id: 'DEV-042', cx: 500, cy: 340, type: 'dev', label: 'DEV-042', subLabel: 'User Auth' },
-  'DEV-046': { id: 'DEV-046', cx: 670, cy: 380, type: 'dev', label: 'DEV-046', subLabel: 'Telemetry' },
-  'DEV-047': { id: 'DEV-047', cx: 960, cy: 340, type: 'dev', label: 'DEV-047', subLabel: 'Webhook Sync' },
-
-  // Level 4: Downstream Tier
-  'DEV-043': { id: 'DEV-043', cx: 330, cy: 490, type: 'dev', label: 'DEV-043', subLabel: 'Web UI Client' },
-  'DEV-048': { id: 'DEV-048', cx: 580, cy: 490, type: 'dev', label: 'DEV-048', subLabel: 'Release Gate' }
-};
 
 interface RelationBond {
   from: string;
@@ -83,18 +54,6 @@ const BONDS: RelationBond[] = [
   { from: 'DEV-042', to: 'DEV-048', type: 'depends_on', isSolid: false }
 ];
 
-// Helper to compute pointy-top hexagon points
-function getHexPoints(cx: number, cy: number, r: number): string {
-  const points: string[] = [];
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 6;
-    const x = cx + r * Math.cos(angle);
-    const y = cy + r * Math.sin(angle);
-    points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
-  }
-  return points.join(' ');
-}
-
 export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
   devs,
   selectedNodeId,
@@ -102,44 +61,10 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
   onOpenEditor,
   onViewEvidence
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [graphMode, setGraphMode] = useState<'construction' | 'implementation' | 'planning'>('construction');
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 60, y: 20 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [hoveredBond, setHoveredBond] = useState<string | null>(null);
 
   const selectedDev = selectedNodeId ? devs[selectedNodeId] : null;
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'svg') {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setPan({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleZoom = (delta: number) => {
-    setZoom(prev => Math.min(Math.max(prev + delta, 0.5), 2.2));
-  };
-
-  const resetView = () => {
-    setZoom(1);
-    setPan({ x: 60, y: 20 });
-  };
 
   const getStatusDotColor = (status?: NodeStatus) => {
     switch (status) {
@@ -152,10 +77,12 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
         return '#a487e8';
       case 'BLOCKED':
         return '#ec6a6a';
+      case 'REVIEW_REQUIRED':
+        return '#d5a94e';
       case 'READY':
         return '#5e9cff';
       default:
-        return '#525252';
+        return 'rgba(255, 255, 255, 0.28)';
     }
   };
 
@@ -169,420 +96,363 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
     });
   }
 
-  return (
-    <div 
-      ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      className="relative w-full h-full bg-[#0B0B0C] overflow-hidden select-none cursor-grab active:cursor-grabbing font-sans"
-    >
-      {/* Engineering Grid (Subtle 6% opacity) */}
-      <div className="absolute inset-0 pointer-events-none tech-grid-bg opacity-[0.06]" />
-
-      {/* Graph Subviews Selector (Top-Left) */}
-      <div className="absolute top-3 left-4 flex items-center space-x-1 bg-[#111113] p-0.5 rounded-xs border border-[rgba(255,255,255,0.08)] z-20 shadow-sm text-xs">
-        <button
-          onClick={() => setGraphMode('construction')}
-          className={`px-2.5 py-1 rounded-xs transition-colors cursor-pointer text-xs ${
-            graphMode === 'construction'
-              ? 'bg-[rgba(255,255,255,0.12)] text-white font-medium shadow-xs'
-              : 'text-[rgba(255,255,255,0.55)] hover:text-white'
-          }`}
-        >
-          Construction
-        </button>
-        <button
-          onClick={() => setGraphMode('implementation')}
-          className={`px-2.5 py-1 rounded-xs transition-colors cursor-pointer text-xs ${
-            graphMode === 'implementation'
-              ? 'bg-[rgba(255,255,255,0.12)] text-white font-medium shadow-xs'
-              : 'text-[rgba(255,255,255,0.55)] hover:text-white'
-          }`}
-        >
-          Implementation
-        </button>
-        <button
-          onClick={() => setGraphMode('planning')}
-          className={`px-2.5 py-1 rounded-xs transition-colors cursor-pointer text-xs ${
-            graphMode === 'planning'
-              ? 'bg-[rgba(255,255,255,0.12)] text-white font-medium shadow-xs'
-              : 'text-[rgba(255,255,255,0.55)] hover:text-white'
-          }`}
-        >
-          Planning
-        </button>
-      </div>
-
-      {/* Floating Zoom/Pan Controls (Top-Right) */}
-      <div className="absolute top-3 right-3 flex items-center space-x-1 bg-[#111113] p-1 rounded-xs border border-[rgba(255,255,255,0.08)] z-20 shadow-sm">
-        <button 
-          onClick={() => handleZoom(0.15)}
-          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-3.5 h-3.5" />
-        </button>
-        <button 
-          onClick={() => handleZoom(-0.15)}
-          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-3.5 h-3.5" />
-        </button>
-        <button 
-          onClick={resetView}
-          className="p-1.5 hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.5)] hover:text-white rounded-xs transition-colors cursor-pointer"
-          title="Reset View"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      {/* 1. Main View: Construction (Hexagonal Molecular Network) */}
-      {graphMode === 'construction' && (
-        <div
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0',
-            transition: isDragging ? 'none' : 'transform 0.18s cubic-bezier(0.22, 1, 0.36, 1)'
-          }}
-          className="w-[1150px] h-[640px] relative pointer-events-auto"
-        >
-          <svg className="w-full h-full pointer-events-auto" viewBox="0 0 1150 640">
-            <defs>
-              <marker id="bond-focus" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse">
-                <polygon points="0,2 7,5 0,8" fill="rgba(255,255,255,0.6)" />
-              </marker>
-            </defs>
-
-            {/* Molecular Network Bonds (Default: Clean lines without arrows) */}
-            {BONDS.map((bond, idx) => {
-              const fromPos = MOLECULAR_POSITIONS[bond.from];
-              const toPos = MOLECULAR_POSITIONS[bond.to];
-              if (!fromPos || !toPos) return null;
-
-              const isFocusBond = 
-                selectedNodeId === bond.from || 
-                selectedNodeId === bond.to;
-
-              const isHoverBond = 
-                hoveredNode === bond.from || 
-                hoveredNode === bond.to;
-
-              const isHighlighted = isFocusBond || isHoverBond;
-              const isBlocked = bond.type === 'blocks' && isHighlighted;
-
-              // Neutral quiet bonds: Focus = 0.48, Default = 0.11, Unrelated = 0.04
-              let strokeColor = 'rgba(255, 255, 255, 0.10)';
-              let strokeWidth = 1.2;
-
-              if (isHighlighted) {
-                strokeColor = isBlocked ? '#ec6a6a' : 'rgba(255, 255, 255, 0.5)';
-                strokeWidth = 2;
-              } else if (selectedNodeId && !directNeighbors.has(bond.from) && !directNeighbors.has(bond.to)) {
-                strokeColor = 'rgba(255, 255, 255, 0.035)';
-              }
-
-              const midX = (fromPos.cx + toPos.cx) / 2;
-              const midY = (fromPos.cy + toPos.cy) / 2;
-
-              return (
-                <g key={`${bond.from}->${bond.to}-${idx}`} className="transition-opacity duration-200">
-                  {/* Molecular Bond Line (Arrow ONLY on Focus/Hover) */}
-                  <line
-                    x1={fromPos.cx}
-                    y1={fromPos.cy}
-                    x2={toPos.cx}
-                    y2={toPos.cy}
-                    stroke={strokeColor}
-                    strokeWidth={strokeWidth}
-                    strokeDasharray={bond.isSolid ? undefined : '4 4'}
-                    markerEnd={isHighlighted ? 'url(#bond-focus)' : undefined}
-                    className="transition-colors duration-150"
-                  />
-
-                  {/* Bond Type Label on Focus/Hover */}
-                  {isHighlighted && (
-                    <g transform={`translate(${midX}, ${midY})`}>
-                      <rect
-                        x="-30"
-                        y="-8"
-                        width="60"
-                        height="16"
-                        rx="2"
-                        fill="#111113"
-                        stroke="rgba(255, 255, 255, 0.12)"
-                        strokeWidth="1"
-                      />
-                      <text
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill="rgba(255, 255, 255, 0.7)"
-                        fontSize="8.5"
-                        fontFamily="monospace"
-                        fontWeight="500"
-                      >
-                        {bond.type}
-                      </text>
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-
-            {/* Hexagonal Nodes (Quiet Neutral Base + Status Dots) */}
-            {Object.values(MOLECULAR_POSITIONS).map(nodePos => {
-              const isSelected = selectedNodeId === nodePos.id;
-              const isHovered = hoveredNode === nodePos.id;
-              const isDirectNeighbor = directNeighbors.has(nodePos.id);
-              const dev = devs[nodePos.id];
-              const isDev = nodePos.type === 'dev';
-
-              let radius = isDev ? 37 : 27;
-              if (isSelected) radius = 45;
-
-              let nodeOpacity = 0.8;
-              if (selectedNodeId) {
-                if (isSelected) nodeOpacity = 1;
-                else if (isDirectNeighbor) nodeOpacity = 0.9;
-                else nodeOpacity = 0.32;
-              }
-
-              const hexPoints = getHexPoints(nodePos.cx, nodePos.cy, radius);
-              const dotColor = isDev ? getStatusDotColor(dev?.status) : '#0ea5e9';
-
-              return (
-                <g
-                  key={nodePos.id}
-                  onClick={e => {
-                    e.stopPropagation();
-                    if (isDev) {
-                      onSelectNode(nodePos.id);
-                    }
-                  }}
-                  onMouseEnter={() => setHoveredNode(nodePos.id)}
-                  onMouseLeave={() => setHoveredNode(null)}
-                  style={{ opacity: nodeOpacity }}
-                  className="cursor-pointer transition-opacity duration-200"
-                >
-                  <polygon
-                    points={hexPoints}
-                    fill={isSelected ? 'rgba(255, 255, 255, 0.05)' : isHovered ? 'rgba(255, 255, 255, 0.035)' : 'rgba(255, 255, 255, 0.02)'}
-                    stroke={isSelected ? 'rgba(255, 255, 255, 0.65)' : isHovered ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.14)'}
-                    strokeWidth={isSelected ? 2 : 1.2}
-                    className="transition-all duration-150"
-                  />
-
-                  {isDev ? (
-                    <>
-                      <circle
-                        cx={nodePos.cx}
-                        cy={nodePos.cy - (radius - 12)}
-                        r="2.5"
-                        fill={dotColor}
-                      />
-                      <text
-                        x={nodePos.cx}
-                        y={nodePos.cy}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill={isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.85)'}
-                        fontSize={isSelected ? '11.5' : '10'}
-                        fontFamily="monospace"
-                        fontWeight="600"
-                      >
-                        {nodePos.label}
-                      </text>
-                      <text
-                        x={nodePos.cx}
-                        y={nodePos.cy + 13}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill="rgba(255, 255, 255, 0.5)"
-                        fontSize="8.5"
-                        fontFamily="sans-serif"
-                      >
-                        {dev ? (dev.title.length > 10 ? dev.title.substring(0, 9) + '…' : dev.title) : nodePos.subLabel}
-                      </text>
-                    </>
-                  ) : (
-                    <>
-                      <text
-                        x={nodePos.cx}
-                        y={nodePos.cy - 3}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill="rgba(255, 255, 255, 0.4)"
-                        fontSize="7.5"
-                        fontFamily="sans-serif"
-                        fontWeight="600"
-                      >
-                        {nodePos.type === 'contract' ? 'CONTRACT' : 'ARTIFACT'}
-                      </text>
-                      <text
-                        x={nodePos.cx}
-                        y={nodePos.cy + 7}
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fill="rgba(255, 255, 255, 0.7)"
-                        fontSize="8"
-                        fontFamily="monospace"
-                      >
-                        {nodePos.label.split(' ')[0]}
-                      </text>
-                    </>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
+  const focusOverlay = selectedDev ? (
+    <div className="absolute bottom-4 left-4 w-[320px] bg-[#111113]/95 backdrop-blur-md border border-[rgba(255,255,255,0.08)] p-3 shadow-xl text-xs font-sans space-y-2.5 z-20 pointer-events-auto rounded-xs">
+      {/* Structural Left Rail Signal */}
+      <div className="flex items-start space-x-2.5">
+        <div className="flex flex-col items-center shrink-0 pt-0.5 text-[rgba(255,255,255,0.5)]">
+          <span className="text-[10px] leading-none font-mono">╲</span>
+          <span className="w-[1px] h-full bg-[rgba(255,255,255,0.2)] block mt-0.5" />
         </div>
-      )}
 
-      {/* 2. Subview: Implementation (DAG Code & Artifact Pipeline Flow) */}
-      {graphMode === 'implementation' && (
-        <div className="w-full h-full p-16 overflow-auto">
-          <div className="max-w-4xl mx-auto space-y-6 text-xs font-sans">
-            <div className="text-[rgba(255,255,255,0.4)] text-[11px] uppercase tracking-wider font-semibold">
-              Implementation Pipeline DAG
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {(Object.values(devs) as DevManifest[]).slice(0, 8).map(d => (
-                <div
-                  key={d.nodeId}
-                  onClick={() => onSelectNode(d.nodeId)}
-                  className={`p-3 rounded-xs border transition-colors cursor-pointer ${
-                    selectedNodeId === d.nodeId
-                      ? 'bg-[rgba(255,255,255,0.06)] border-white text-white'
-                      : 'bg-[#111113] border-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.8)] hover:border-[rgba(255,255,255,0.2)]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-mono text-[11px] mb-1">
-                    <span>{d.nodeId}</span>
-                    <span className={`w-2 h-2 rounded-full ${
-                      d.status === 'PASS' ? 'bg-[#55c98b]' :
-                      d.status === 'RUNNING' ? 'bg-[#5e9cff]' :
-                      d.status === 'BLOCKED' ? 'bg-[#ec6a6a]' :
-                      'bg-[rgba(255,255,255,0.3)]'
-                    }`} />
-                  </div>
-                  <div className="font-semibold text-white mb-1.5 text-[12px] truncate">{d.title}</div>
-                  <div className="text-[10px] text-[rgba(255,255,255,0.4)] truncate">{d.scope.allowed[0]}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 3. Subview: Planning (Milestones & Roadmap Matrix) */}
-      {graphMode === 'planning' && (
-        <div className="w-full h-full p-16 overflow-auto">
-          <div className="max-w-4xl mx-auto space-y-6 text-xs font-sans">
-            <div className="text-[rgba(255,255,255,0.4)] text-[11px] uppercase tracking-wider font-semibold">
-              Project Milestone Matrix · Aurora V1.2
-            </div>
-
-            <div className="space-y-3">
-              {[
-                { milestone: 'M1 Foundation', status: 'COMPLETED', nodes: ['DEV-039', 'DEV-040'], progress: '100%' },
-                { milestone: 'M2 Core Capabilities', status: 'IN_PROGRESS', nodes: ['DEV-041', 'DEV-042', 'DEV-045'], progress: '75%' },
-                { milestone: 'M3 Integrations & Webhooks', status: 'BLOCKED', nodes: ['DEV-044', 'DEV-047'], progress: '40%' },
-                { milestone: 'M4 Release Gate & Packaging', status: 'PENDING', nodes: ['DEV-043', 'DEV-048'], progress: '0%' },
-              ].map(m => (
-                <div key={m.milestone} className="p-3 bg-[#111113] border border-[rgba(255,255,255,0.08)] rounded-xs flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-white text-[12px]">{m.milestone}</div>
-                    <div className="text-[11px] text-[rgba(255,255,255,0.5)] font-mono mt-0.5">{m.nodes.join(' · ')}</div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="font-mono text-[11px] text-[rgba(255,255,255,0.7)]">{m.progress}</span>
-                    <span className={`px-2 py-0.5 text-[10px] font-mono rounded-xs border ${
-                      m.status === 'COMPLETED' ? 'text-[#55c98b] border-[rgba(85,201,139,0.3)] bg-[rgba(85,201,139,0.05)]' :
-                      m.status === 'IN_PROGRESS' ? 'text-[#5e9cff] border-[rgba(94,156,255,0.3)] bg-[rgba(94,156,255,0.05)]' :
-                      m.status === 'BLOCKED' ? 'text-[#ec6a6a] border-[rgba(236,106,106,0.3)] bg-[rgba(236,106,106,0.05)]' :
-                      'text-[rgba(255,255,255,0.4)] border-[rgba(255,255,255,0.08)]'
-                    }`}>
-                      {m.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Focus Context Overlay (Floating Bottom-Left Sheet) */}
-      {selectedDev && graphMode === 'construction' && (
-        <div className="absolute bottom-4 left-4 w-80 bg-[#111113]/95 backdrop-blur-md border border-[rgba(255,255,255,0.12)] rounded-xs p-3.5 shadow-xl text-xs font-sans space-y-2.5 z-20 animate-in fade-in">
+        <div className="flex-1 min-w-0 space-y-2">
           {/* Header */}
-          <div className="flex items-center justify-between pb-1.5 border-b border-[rgba(255,255,255,0.08)]">
-            <div className="flex items-center space-x-2">
-              <span className="font-mono text-white font-semibold text-[12px]">{selectedDev.nodeId}</span>
-              <span className="text-[rgba(255,255,255,0.3)]">·</span>
-              <span className="text-[rgba(255,255,255,0.7)] text-[11px] truncate max-w-[130px]">{selectedDev.title}</span>
+          <div className="flex items-center justify-between pb-1 border-b border-[rgba(255,255,255,0.06)]">
+            <div className="flex items-center space-x-1.5 truncate">
+              <span className="font-mono text-white font-semibold text-[11px]">{selectedDev.nodeId}</span>
+              <span className="text-[rgba(255,255,255,0.25)]">·</span>
+              <span className="text-[rgba(255,255,255,0.7)] text-[11px] truncate">{selectedDev.title}</span>
             </div>
 
-            <div className="flex items-center space-x-1 font-mono text-[10px]">
-              <span className={`w-1.5 h-1.5 rounded-full ${
+            <div className="flex items-center space-x-1.5 font-mono text-[10px] shrink-0">
+              <span className={`w-[5px] h-[5px] rounded-full ${
                 selectedDev.status === 'PASS' ? 'bg-[#55c98b]' :
                 selectedDev.status === 'RUNNING' ? 'bg-[#5e9cff] animate-quiet-pulse' :
                 selectedDev.status === 'BLOCKED' ? 'bg-[#ec6a6a]' :
-                'bg-[rgba(255,255,255,0.4)]'
+                selectedDev.status === 'AUDITING' ? 'bg-[#a487e8]' :
+                'bg-[rgba(255,255,255,0.3)]'
               }`} />
-              <span className="text-[rgba(255,255,255,0.8)]">{selectedDev.status}</span>
+              <span className="text-[rgba(255,255,255,0.85)] uppercase">{selectedDev.status}</span>
             </div>
           </div>
 
-          {/* Details */}
-          <div className="space-y-1.5 text-[11px] text-[rgba(255,255,255,0.65)]">
-            <div>
-              <span className="text-[rgba(255,255,255,0.4)] font-medium">Goal: </span>
-              <span className="text-[rgba(255,255,255,0.9)]">{selectedDev.goal}</span>
+          {/* Quick Diagnostics */}
+          <div className="space-y-1 text-[11px] text-[rgba(255,255,255,0.65)]">
+            <div className="truncate">
+              <span className="text-[rgba(255,255,255,0.35)]">Goal: </span>
+              <span className="text-[rgba(255,255,255,0.85)]">{selectedDev.goal}</span>
             </div>
-            <div className="flex justify-between font-mono text-[10px]">
-              <span className="text-[rgba(255,255,255,0.4)]">Depends On:</span>
-              <span className="text-[rgba(255,255,255,0.8)]">
-                {selectedDev.dependsOn.length > 0 ? selectedDev.dependsOn.join(', ') : 'None'}
+            <div className="flex justify-between font-mono text-[10px] yu-data">
+              <span className="text-[rgba(255,255,255,0.35)]">Dependencies:</span>
+              <span className="text-[rgba(255,255,255,0.85)]">
+                {selectedDev.dependsOn.length > 0 ? selectedDev.dependsOn.join(', ') : 'Root Entity'}
               </span>
             </div>
-            <div className="flex justify-between font-mono text-[10px]">
-              <span className="text-[rgba(255,255,255,0.4)]">Scope Rules:</span>
-              <span className="text-[rgba(255,255,255,0.8)]">
-                {selectedDev.scope.allowed.length} write / {selectedDev.scope.forbidden.length} forbidden
+            <div className="flex justify-between font-mono text-[10px] yu-data">
+              <span className="text-[rgba(255,255,255,0.35)]">Scope Rules:</span>
+              <span className="text-[rgba(255,255,255,0.85)]">
+                {selectedDev.scope.allowed.length} write · {selectedDev.scope.forbidden.length} blocked
               </span>
             </div>
           </div>
 
-          {/* Quick Actions */}
+          {/* Action Buttons: 32px height standard */}
           <div className="flex items-center space-x-2 pt-1 border-t border-[rgba(255,255,255,0.06)]">
             {onOpenEditor && (
               <button
                 onClick={() => onOpenEditor(selectedDev.nodeId)}
-                className="flex-1 flex items-center justify-center space-x-1 py-1 bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)] text-white rounded-xs border border-[rgba(255,255,255,0.1)] text-[11px] transition-colors cursor-pointer"
+                className="h-8 flex-1 flex items-center justify-center space-x-1.5 px-3 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] active:bg-[rgba(255,255,255,0.12)] text-white rounded-xs border border-[rgba(255,255,255,0.08)] text-[11px] transition-colors cursor-pointer"
               >
-                <ExternalLink className="w-3 h-3" />
-                <span>Open Editor</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open DEV</span>
               </button>
             )}
 
             {onViewEvidence && selectedDev.currentRun && (
               <button
                 onClick={() => onViewEvidence(selectedDev.nodeId)}
-                className="flex-1 flex items-center justify-center space-x-1 py-1 bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.1)] text-[rgba(255,255,255,0.85)] rounded-xs border border-[rgba(255,255,255,0.1)] text-[11px] transition-colors cursor-pointer"
+                className="h-8 flex-1 flex items-center justify-center space-x-1.5 px-3 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] active:bg-[rgba(255,255,255,0.12)] text-[rgba(255,255,255,0.85)] rounded-xs border border-[rgba(255,255,255,0.08)] text-[11px] transition-colors cursor-pointer"
               >
-                <Eye className="w-3 h-3" />
+                <Eye className="w-3.5 h-3.5" />
                 <span>Evidence</span>
               </button>
             )}
           </div>
         </div>
-      )}
+      </div>
     </div>
+  ) : null;
+
+  return (
+    <GraphViewport overlay={focusOverlay}>
+      <svg
+        className="w-full h-full pointer-events-auto"
+        viewBox={`0 0 ${GRAPH_CANVAS_WIDTH} ${GRAPH_CANVAS_HEIGHT}`}
+      >
+        <defs>
+          <marker
+            id="bond-arrow-focus"
+            viewBox="0 0 10 10"
+            refX="6"
+            refY="5"
+            markerWidth="4"
+            markerHeight="4"
+            orient="auto-start-reverse"
+          >
+            <polygon points="0,2 6,5 0,8" fill="rgba(255, 255, 255, 0.65)" />
+          </marker>
+          <marker
+            id="bond-arrow-blocked"
+            viewBox="0 0 10 10"
+            refX="6"
+            refY="5"
+            markerWidth="4"
+            markerHeight="4"
+            orient="auto-start-reverse"
+          >
+            <polygon points="0,2 6,5 0,8" fill="#ec6a6a" />
+          </marker>
+        </defs>
+
+        {/* 1. MOLECULAR BONDS */}
+        {BONDS.map((bond, idx) => {
+          const fromPos = CONSTRUCTION_POSITIONS[bond.from];
+          const toPos = CONSTRUCTION_POSITIONS[bond.to];
+          if (!fromPos || !toPos) return null;
+
+          const fromR = fromPos.type === 'dev' 
+            ? (selectedNodeId === bond.from ? RADIUS_FOCUS_DEV : RADIUS_MAIN_DEV)
+            : RADIUS_SUPPORT;
+          const toR = toPos.type === 'dev'
+            ? (selectedNodeId === bond.to ? RADIUS_FOCUS_DEV : RADIUS_MAIN_DEV)
+            : RADIUS_SUPPORT;
+
+          // Exact ray-boundary intersection with 4px mechanical gap
+          const { x1, y1, x2, y2, midX, midY } = computeBondEndpoints(
+            fromPos.cx,
+            fromPos.cy,
+            fromR,
+            toPos.cx,
+            toPos.cy,
+            toR,
+            4
+          );
+
+          const bondKey = `${bond.from}->${bond.to}`;
+          const isFocusBond = selectedNodeId === bond.from || selectedNodeId === bond.to;
+          const isHoverBond = hoveredNode === bond.from || hoveredNode === bond.to || hoveredBond === bondKey;
+          const isHighlighted = isFocusBond || isHoverBond;
+          const isBlocked = bond.type === 'blocks' && (isHighlighted || devs[bond.from]?.status === 'BLOCKED');
+
+          // R3 Bond specification:
+          // Default: Visible line 1px, Opacity 10%, Arrow: NONE
+          // Focus: Line 1.5px, Opacity 55%, Arrow: YES
+          // Blocked: Line 1.5px, Red 75%
+          let strokeColor = 'rgba(255, 255, 255, 0.10)';
+          let strokeWidth = 1;
+          let markerEnd: string | undefined = undefined;
+
+          if (isBlocked) {
+            strokeColor = 'rgba(236, 106, 106, 0.75)';
+            strokeWidth = 1.5;
+            markerEnd = 'url(#bond-arrow-blocked)';
+          } else if (isHighlighted) {
+            strokeColor = 'rgba(255, 255, 255, 0.55)';
+            strokeWidth = 1.5;
+            markerEnd = 'url(#bond-arrow-focus)';
+          } else if (selectedNodeId && !directNeighbors.has(bond.from) && !directNeighbors.has(bond.to)) {
+            strokeColor = 'rgba(255, 255, 255, 0.035)';
+          }
+
+          return (
+            <g
+              key={`${bondKey}-${idx}`}
+              onMouseEnter={() => setHoveredBond(bondKey)}
+              onMouseLeave={() => setHoveredBond(null)}
+              className="transition-opacity duration-150 cursor-pointer"
+            >
+              {/* Invisible 12px hover hit area */}
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke="transparent"
+                strokeWidth={12}
+                vectorEffect="non-scaling-stroke"
+              />
+
+              {/* Visible Bond line */}
+              <line
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeDasharray={bond.isSolid ? undefined : '3 5'}
+                markerEnd={markerEnd}
+                vectorEffect="non-scaling-stroke"
+                className="transition-colors duration-150"
+              />
+
+              {/* Relationship label on Focus/Hover */}
+              {isHighlighted && (
+                <g transform={`translate(${midX}, ${midY})`}>
+                  <rect
+                    x="-32"
+                    y="-9"
+                    width="64"
+                    height="18"
+                    rx="2"
+                    fill="#111113"
+                    stroke="rgba(255, 255, 255, 0.12)"
+                    strokeWidth="1"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="rgba(255, 255, 255, 0.75)"
+                    fontSize="8.5"
+                    fontFamily="monospace"
+                    fontWeight="500"
+                  >
+                    {bond.type}
+                  </text>
+                </g>
+              )}
+            </g>
+          );
+        })}
+
+        {/* 2. HEXAGONAL NODES */}
+        {Object.values(CONSTRUCTION_POSITIONS).map(nodePos => {
+          const isSelected = selectedNodeId === nodePos.id;
+          const isHovered = hoveredNode === nodePos.id;
+          const isDirectNeighbor = directNeighbors.has(nodePos.id);
+          const dev = devs[nodePos.id];
+          const isDev = nodePos.type === 'dev';
+
+          // Node radii: Main DEV r=36 (focus r=44), Support r=28
+          let radius = isDev ? RADIUS_MAIN_DEV : RADIUS_SUPPORT;
+          if (isSelected && isDev) radius = RADIUS_FOCUS_DEV;
+
+          let nodeOpacity = 0.88;
+          if (selectedNodeId) {
+            if (isSelected) nodeOpacity = 1;
+            else if (isDirectNeighbor) nodeOpacity = 0.85;
+            else nodeOpacity = 0.28;
+          }
+
+          const hexPoints = getHexPoints(nodePos.cx, nodePos.cy, radius);
+          const hitHexPoints = getHexPoints(nodePos.cx, nodePos.cy, RADIUS_HIT_TARGET);
+          const dotColor = isDev ? getStatusDotColor(dev?.status) : '#0ea5e9';
+
+          return (
+            <g
+              key={nodePos.id}
+              onClick={e => {
+                e.stopPropagation();
+                if (isDev) {
+                  onSelectNode(nodePos.id);
+                }
+              }}
+              onMouseEnter={() => setHoveredNode(nodePos.id)}
+              onMouseLeave={() => setHoveredNode(null)}
+              style={{ opacity: nodeOpacity }}
+              className="cursor-pointer transition-opacity duration-150"
+            >
+              {/* Invisible Hit Hex (r=52) guaranteeing generous touch/click target even at 0.5x zoom */}
+              <polygon
+                points={hitHexPoints}
+                fill="transparent"
+                stroke="none"
+                pointerEvents="all"
+              />
+
+              {/* Visible Hexagon Facet */}
+              <polygon
+                points={hexPoints}
+                fill={
+                  isSelected
+                    ? 'rgba(255, 255, 255, 0.05)'
+                    : isHovered
+                    ? 'rgba(255, 255, 255, 0.035)'
+                    : 'rgba(255, 255, 255, 0.015)'
+                }
+                stroke={
+                  isSelected
+                    ? 'rgba(255, 255, 255, 0.7)'
+                    : isHovered
+                    ? 'rgba(255, 255, 255, 0.35)'
+                    : 'rgba(255, 255, 255, 0.12)'
+                }
+                strokeWidth={isSelected ? 1.5 : 1}
+                vectorEffect="non-scaling-stroke"
+                className="transition-colors duration-150"
+              />
+
+              {isDev ? (
+                <>
+                  {/* Status Dot: 5px (Focus 6px) */}
+                  <circle
+                    cx={nodePos.cx}
+                    cy={nodePos.cy - (radius - 11)}
+                    r={isSelected ? 3 : 2.5}
+                    fill={dotColor}
+                    className={dev?.status === 'RUNNING' ? 'animate-quiet-pulse' : undefined}
+                  />
+
+                  {/* Primary Node ID */}
+                  <text
+                    x={nodePos.cx}
+                    y={nodePos.cy + 1}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill={isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.88)'}
+                    fontSize={isSelected ? '11' : '10'}
+                    fontFamily="monospace"
+                    fontWeight="600"
+                  >
+                    {nodePos.label}
+                  </text>
+
+                  {/* Subtitle / Title label */}
+                  <text
+                    x={nodePos.cx}
+                    y={nodePos.cy + 13}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="rgba(255, 255, 255, 0.45)"
+                    fontSize="8"
+                    fontFamily="sans-serif"
+                  >
+                    {dev ? (dev.title.length > 10 ? dev.title.substring(0, 9) + '…' : dev.title) : nodePos.subLabel}
+                  </text>
+                </>
+              ) : (
+                <>
+                  {/* Contract or Artifact Label */}
+                  <text
+                    x={nodePos.cx}
+                    y={nodePos.cy - 4}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="rgba(255, 255, 255, 0.4)"
+                    fontSize="7.5"
+                    fontFamily="sans-serif"
+                    fontWeight="600"
+                  >
+                    {nodePos.type === 'contract' ? 'CONTRACT' : 'ARTIFACT'}
+                  </text>
+                  <text
+                    x={nodePos.cx}
+                    y={nodePos.cy + 7}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="rgba(255, 255, 255, 0.75)"
+                    fontSize="8.5"
+                    fontFamily="monospace"
+                  >
+                    {nodePos.label.split(' ')[0]}
+                  </text>
+                </>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+    </GraphViewport>
   );
 };
-
