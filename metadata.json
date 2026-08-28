@@ -1,0 +1,6 @@
+{
+  "name": "YU IMPRM V1.2 Workbench",
+  "description": "Deterministic engineering workbench for YU Node Parallelism, featuring max 4-slot DAG construction runs, contract/scope isolation, ephemeral worker run tracking, fresh Claude final review, and interactive project copilot.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
