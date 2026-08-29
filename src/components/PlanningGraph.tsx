@@ -9,7 +9,6 @@ import {
   getHexPoints, 
   computeBondEndpoints 
 } from '../engine/graphGeometry';
-import { GraphViewport } from './GraphViewport';
 
 interface PlanningGraphProps {
   onSelectMilestone?: (milestoneId: string) => void;
@@ -31,7 +30,7 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectMilestone 
   };
 
   return (
-    <GraphViewport>
+    <div className="w-full h-full relative select-none">
       <svg
         className="w-full h-full pointer-events-auto"
         viewBox={`0 0 ${GRAPH_CANVAS_WIDTH} ${GRAPH_CANVAS_HEIGHT}`}
@@ -74,7 +73,7 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectMilestone 
             );
 
             return (
-              <g key={`${node.id}->${target.id}`}>
+              <g key={`${node.id}->${targetId}`}>
                 {/* Invisible 12px hover hit area */}
                 <line
                   x1={x1}
@@ -98,6 +97,30 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectMilestone 
                   markerEnd={isHighlighted ? 'url(#plan-focus)' : undefined}
                   vectorEffect="non-scaling-stroke"
                   className="transition-colors duration-150"
+                />
+
+                {/* 3px Structural Anchors */}
+                <circle
+                  cx={x1}
+                  cy={y1}
+                  r={1.5}
+                  fill="#0B0B0C"
+                  stroke="rgba(255, 255, 255, 0.4)"
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ opacity: isHighlighted ? 1 : 0 }}
+                  className="transition-opacity duration-150 pointer-events-none"
+                />
+                <circle
+                  cx={x2}
+                  cy={y2}
+                  r={1.5}
+                  fill="#0B0B0C"
+                  stroke="rgba(255, 255, 255, 0.4)"
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ opacity: isHighlighted ? 1 : 0 }}
+                  className="transition-opacity duration-150 pointer-events-none"
                 />
               </g>
             );
@@ -191,6 +214,7 @@ export const PlanningGraph: React.FC<PlanningGraphProps> = ({ onSelectMilestone 
           );
         })}
       </svg>
-    </GraphViewport>
+    </div>
   );
 };
+

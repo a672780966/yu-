@@ -4,8 +4,6 @@ import {
   INITIAL_CONTRACTS, 
   INITIAL_ARTIFACTS, 
   INITIAL_PROJECT_FILES, 
-  INITIAL_IMPLEMENTATION_NODES, 
-  INITIAL_PLANNING_NODES,
   INITIAL_COPILOT_MESSAGES 
 } from './data/initialData';
 import { 
@@ -27,6 +25,7 @@ import {
 
 import { TopBar } from './components/TopBar';
 import { Explorer } from './components/Explorer';
+import { GraphViewport } from './components/GraphViewport';
 import { ConstructionGraph } from './components/ConstructionGraph';
 import { ImplementationGraph } from './components/ImplementationGraph';
 import { PlanningGraph } from './components/PlanningGraph';
@@ -35,6 +34,7 @@ import { ReleaseAssurance } from './components/ReleaseAssurance';
 import { YuCopilot } from './components/YuCopilot';
 import { AgentConfigurationDock } from './components/AgentConfigurationDock';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
+import { CONSTRUCTION_POSITIONS } from './engine/graphGeometry';
 
 export default function App() {
   // Parallelism State
@@ -357,77 +357,95 @@ export default function App() {
         <main className="flex-1 flex flex-col min-w-0 bg-[#0A0A0A] overflow-hidden">
           {activeTab === 'graph' && (
             <div className="flex-1 flex flex-col h-full overflow-hidden">
-              {/* Graph Sub-Tabs Header (De-buttonized Quiet Tabs with 1px active indicator) */}
-              <div className="h-9 bg-[#0B0B0C] border-b border-[rgba(255,255,255,0.075)] px-4 flex items-center justify-start space-x-6 shrink-0 font-sans">
-                <button
-                  onClick={() => setGraphSubTab('construction')}
-                  className={`h-full relative text-xs transition-colors cursor-pointer flex items-center ${
-                    graphSubTab === 'construction'
-                      ? 'text-white font-medium'
-                      : 'text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.8)]'
-                  }`}
-                >
-                  <span>Construction</span>
-                  {graphSubTab === 'construction' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setGraphSubTab('implementation')}
-                  className={`h-full relative text-xs transition-colors cursor-pointer flex items-center ${
-                    graphSubTab === 'implementation'
-                      ? 'text-white font-medium'
-                      : 'text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.8)]'
-                  }`}
-                >
-                  <span>Implementation</span>
-                  {graphSubTab === 'implementation' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white" />
-                  )}
-                </button>
-                <button
-                  onClick={() => setGraphSubTab('planning')}
-                  className={`h-full relative text-xs transition-colors cursor-pointer flex items-center ${
-                    graphSubTab === 'planning'
-                      ? 'text-white font-medium'
-                      : 'text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.8)]'
-                  }`}
-                >
-                  <span>Planning</span>
-                  {graphSubTab === 'planning' && (
-                    <span className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-white" />
-                  )}
-                </button>
+              {/* Graph Sub-Tabs Header (Quiet Tabs with Precision Rail Indicator) */}
+              <div className="h-9 bg-[#0B0B0C] border-b border-[rgba(255,255,255,0.075)] px-4 flex items-center justify-start space-x-6 shrink-0 font-sans select-none">
+                {(
+                  [
+                    { id: 'construction', label: 'Construction' },
+                    { id: 'implementation', label: 'Implementation' },
+                    { id: 'planning', label: 'Planning' }
+                  ] as const
+                ).map(subTab => {
+                  const isActive = graphSubTab === subTab.id;
+                  return (
+                    <button
+                      key={subTab.id}
+                      onClick={() => setGraphSubTab(subTab.id)}
+                      className={`h-full relative text-xs transition-colors cursor-pointer flex items-center ${
+                        isActive
+                          ? 'text-white font-medium'
+                          : 'text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.8)]'
+                      }`}
+                    >
+                      <span>{subTab.label}</span>
+                      {isActive && (
+                        <svg
+                          width="32"
+                          height="6"
+                          viewBox="0 0 32 6"
+                          className="absolute bottom-0 left-1/2 -translate-x-1/2 text-white fill-none stroke-current"
+                          strokeWidth="1.5"
+                        >
+                          <path
+                            d="M0 5.25 L20 5.25 L28 1.25"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            vectorEffect="non-scaling-stroke"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Sub-View Render */}
+              {/* Single Permanent Graph Stage */}
               <div className="flex-1 min-h-0 overflow-hidden relative">
-                {graphSubTab === 'construction' && (
-                  <ConstructionGraph
-                    devs={devs}
-                    selectedNodeId={selectedNodeId}
-                    onSelectNode={handleSelectNode}
-                    activeSlots={activeSlots}
-                    onOpenEditor={handleOpenEditorForNode}
-                    onViewEvidence={nodeId => {
-                      setSelectedNodeId(nodeId);
-                      setActiveTab('editor');
-                    }}
-                  />
-                )}
+                <GraphViewport
+                  focusTarget={
+                    selectedNodeId && CONSTRUCTION_POSITIONS[selectedNodeId]
+                      ? { x: CONSTRUCTION_POSITIONS[selectedNodeId].cx, y: CONSTRUCTION_POSITIONS[selectedNodeId].cy }
+                      : null
+                  }
+                >
+                  <div className="w-full h-full relative transition-all duration-180 ease-out">
+                    {graphSubTab === 'construction' && (
+                      <div className="w-full h-full animate-in fade-in zoom-in-[0.992] duration-180">
+                        <ConstructionGraph
+                          devs={devs}
+                          selectedNodeId={selectedNodeId}
+                          onSelectNode={handleSelectNode}
+                          activeSlots={activeSlots}
+                          onOpenEditor={handleOpenEditorForNode}
+                          onViewEvidence={nodeId => {
+                            setSelectedNodeId(nodeId);
+                            setActiveTab('editor');
+                          }}
+                        />
+                      </div>
+                    )}
 
-                {graphSubTab === 'implementation' && (
-                  <ImplementationGraph
-                    nodes={INITIAL_IMPLEMENTATION_NODES}
-                  />
-                )}
+                    {graphSubTab === 'implementation' && (
+                      <div className="w-full h-full animate-in fade-in zoom-in-[0.992] duration-180">
+                        <ImplementationGraph
+                          onSelectSymbol={name => {
+                            console.log('Selected symbol:', name);
+                          }}
+                        />
+                      </div>
+                    )}
 
-                {graphSubTab === 'planning' && (
-                  <PlanningGraph
-                    nodes={INITIAL_PLANNING_NODES}
-                    onSelectNode={handleSelectNode}
-                  />
-                )}
+                    {graphSubTab === 'planning' && (
+                      <div className="w-full h-full animate-in fade-in zoom-in-[0.992] duration-180">
+                        <PlanningGraph
+                          onSelectMilestone={milestoneId => {
+                            console.log('Selected milestone:', milestoneId);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </GraphViewport>
               </div>
             </div>
           )}

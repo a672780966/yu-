@@ -94,7 +94,20 @@ export const TopBar: React.FC<TopBarProps> = ({
             >
               <span>{tab.label}</span>
               {isActive && (
-                <span className="absolute bottom-0 left-2 right-2 h-[1.5px] bg-white rounded-t-xs" />
+                <svg
+                  width="32"
+                  height="6"
+                  viewBox="0 0 32 6"
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 text-white fill-none stroke-current"
+                  strokeWidth="1.5"
+                >
+                  <path
+                    d="M0 5.25 L20 5.25 L28 1.25"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
               )}
             </button>
           );

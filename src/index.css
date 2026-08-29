@@ -52,10 +52,15 @@
   }
 }
 
-/* Subtle background grid on 24px Macro Grid */
+/* Subtle background grid on 24px Macro Grid: true 2.5% neutral, active 5% */
 .tech-grid-bg {
-  background-image: radial-gradient(rgba(255, 255, 255, 0.065) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
   background-size: 24px 24px;
+  transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tech-grid-bg.grid-active {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
 }
 
 /* Tabular data format */

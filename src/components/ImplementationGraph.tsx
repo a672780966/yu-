@@ -9,7 +9,6 @@ import {
   getHexPoints, 
   computeBondEndpoints 
 } from '../engine/graphGeometry';
-import { GraphViewport } from './GraphViewport';
 
 interface ImplementationGraphProps {
   onSelectSymbol?: (symbolName: string) => void;
@@ -20,7 +19,7 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
-    <GraphViewport>
+    <div className="w-full h-full relative select-none">
       <svg
         className="w-full h-full pointer-events-auto"
         viewBox={`0 0 ${GRAPH_CANVAS_WIDTH} ${GRAPH_CANVAS_HEIGHT}`}
@@ -86,6 +85,30 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
                   markerEnd={isHighlighted ? 'url(#cbm-focus)' : undefined}
                   vectorEffect="non-scaling-stroke"
                   className="transition-colors duration-150"
+                />
+
+                {/* 3px Structural Anchors */}
+                <circle
+                  cx={x1}
+                  cy={y1}
+                  r={1.5}
+                  fill="#0B0B0C"
+                  stroke="rgba(255, 255, 255, 0.4)"
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ opacity: isHighlighted ? 1 : 0 }}
+                  className="transition-opacity duration-150 pointer-events-none"
+                />
+                <circle
+                  cx={x2}
+                  cy={y2}
+                  r={1.5}
+                  fill="#0B0B0C"
+                  stroke="rgba(255, 255, 255, 0.4)"
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ opacity: isHighlighted ? 1 : 0 }}
+                  className="transition-opacity duration-150 pointer-events-none"
                 />
               </g>
             );
@@ -185,6 +208,7 @@ export const ImplementationGraph: React.FC<ImplementationGraphProps> = ({ onSele
           );
         })}
       </svg>
-    </GraphViewport>
+    </div>
   );
 };
+

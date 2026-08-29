@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { 
   ExternalLink, 
-  Eye, 
-  Lock, 
-  Layers
+  Eye
 } from 'lucide-react';
 import { DevManifest, NodeStatus } from '../types';
 import { 
@@ -17,7 +15,6 @@ import {
   getHexPoints, 
   computeBondEndpoints 
 } from '../engine/graphGeometry';
-import { GraphViewport } from './GraphViewport';
 
 interface ConstructionGraphProps {
   devs: Record<string, DevManifest>;
@@ -65,6 +62,7 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
   const [hoveredBond, setHoveredBond] = useState<string | null>(null);
 
   const selectedDev = selectedNodeId ? devs[selectedNodeId] : null;
+  const selectedPos = selectedNodeId ? CONSTRUCTION_POSITIONS[selectedNodeId] : null;
 
   const getStatusDotColor = (status?: NodeStatus) => {
     switch (status) {
@@ -96,85 +94,25 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
     });
   }
 
-  const focusOverlay = selectedDev ? (
-    <div className="absolute bottom-4 left-4 w-[320px] bg-[#111113]/95 backdrop-blur-md border border-[rgba(255,255,255,0.08)] p-3 shadow-xl text-xs font-sans space-y-2.5 z-20 pointer-events-auto rounded-xs">
-      {/* Structural Left Rail Signal */}
-      <div className="flex items-start space-x-2.5">
-        <div className="flex flex-col items-center shrink-0 pt-0.5 text-[rgba(255,255,255,0.5)]">
-          <span className="text-[10px] leading-none font-mono">╲</span>
-          <span className="w-[1px] h-full bg-[rgba(255,255,255,0.2)] block mt-0.5" />
-        </div>
-
-        <div className="flex-1 min-w-0 space-y-2">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-1 border-b border-[rgba(255,255,255,0.06)]">
-            <div className="flex items-center space-x-1.5 truncate">
-              <span className="font-mono text-white font-semibold text-[11px]">{selectedDev.nodeId}</span>
-              <span className="text-[rgba(255,255,255,0.25)]">·</span>
-              <span className="text-[rgba(255,255,255,0.7)] text-[11px] truncate">{selectedDev.title}</span>
-            </div>
-
-            <div className="flex items-center space-x-1.5 font-mono text-[10px] shrink-0">
-              <span className={`w-[5px] h-[5px] rounded-full ${
-                selectedDev.status === 'PASS' ? 'bg-[#55c98b]' :
-                selectedDev.status === 'RUNNING' ? 'bg-[#5e9cff] animate-quiet-pulse' :
-                selectedDev.status === 'BLOCKED' ? 'bg-[#ec6a6a]' :
-                selectedDev.status === 'AUDITING' ? 'bg-[#a487e8]' :
-                'bg-[rgba(255,255,255,0.3)]'
-              }`} />
-              <span className="text-[rgba(255,255,255,0.85)] uppercase">{selectedDev.status}</span>
-            </div>
-          </div>
-
-          {/* Quick Diagnostics */}
-          <div className="space-y-1 text-[11px] text-[rgba(255,255,255,0.65)]">
-            <div className="truncate">
-              <span className="text-[rgba(255,255,255,0.35)]">Goal: </span>
-              <span className="text-[rgba(255,255,255,0.85)]">{selectedDev.goal}</span>
-            </div>
-            <div className="flex justify-between font-mono text-[10px] yu-data">
-              <span className="text-[rgba(255,255,255,0.35)]">Dependencies:</span>
-              <span className="text-[rgba(255,255,255,0.85)]">
-                {selectedDev.dependsOn.length > 0 ? selectedDev.dependsOn.join(', ') : 'Root Entity'}
-              </span>
-            </div>
-            <div className="flex justify-between font-mono text-[10px] yu-data">
-              <span className="text-[rgba(255,255,255,0.35)]">Scope Rules:</span>
-              <span className="text-[rgba(255,255,255,0.85)]">
-                {selectedDev.scope.allowed.length} write · {selectedDev.scope.forbidden.length} blocked
-              </span>
-            </div>
-          </div>
-
-          {/* Action Buttons: 32px height standard */}
-          <div className="flex items-center space-x-2 pt-1 border-t border-[rgba(255,255,255,0.06)]">
-            {onOpenEditor && (
-              <button
-                onClick={() => onOpenEditor(selectedDev.nodeId)}
-                className="h-8 flex-1 flex items-center justify-center space-x-1.5 px-3 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] active:bg-[rgba(255,255,255,0.12)] text-white rounded-xs border border-[rgba(255,255,255,0.08)] text-[11px] transition-colors cursor-pointer"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Open DEV</span>
-              </button>
-            )}
-
-            {onViewEvidence && selectedDev.currentRun && (
-              <button
-                onClick={() => onViewEvidence(selectedDev.nodeId)}
-                className="h-8 flex-1 flex items-center justify-center space-x-1.5 px-3 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] active:bg-[rgba(255,255,255,0.12)] text-[rgba(255,255,255,0.85)] rounded-xs border border-[rgba(255,255,255,0.08)] text-[11px] transition-colors cursor-pointer"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Evidence</span>
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  ) : null;
+  // Determine diagonal placement for 220x136 Focus Annotation
+  // Top-Left -> Bottom-Right; Top-Right -> Bottom-Left; Bottom-Left -> Top-Right; Bottom-Right -> Top-Left
+  let annotationPlacementClass = 'bottom-6 left-6';
+  if (selectedPos) {
+    const isLeft = selectedPos.cx <= 524;
+    const isTop = selectedPos.cy <= 324;
+    if (isLeft && isTop) {
+      annotationPlacementClass = 'bottom-6 right-6';
+    } else if (!isLeft && isTop) {
+      annotationPlacementClass = 'bottom-6 left-6';
+    } else if (isLeft && !isTop) {
+      annotationPlacementClass = 'top-14 right-6';
+    } else {
+      annotationPlacementClass = 'top-14 left-6';
+    }
+  }
 
   return (
-    <GraphViewport overlay={focusOverlay}>
+    <div className="w-full h-full relative select-none">
       <svg
         className="w-full h-full pointer-events-auto"
         viewBox={`0 0 ${GRAPH_CANVAS_WIDTH} ${GRAPH_CANVAS_HEIGHT}`}
@@ -232,17 +170,15 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
           const isFocusBond = selectedNodeId === bond.from || selectedNodeId === bond.to;
           const isHoverBond = hoveredNode === bond.from || hoveredNode === bond.to || hoveredBond === bondKey;
           const isHighlighted = isFocusBond || isHoverBond;
-          const isBlocked = bond.type === 'blocks' && (isHighlighted || devs[bond.from]?.status === 'BLOCKED');
+          
+          // Blocked bond only turns red when focused/hovered
+          const isBlockedAndFocused = bond.type === 'blocks' && (isHighlighted || (selectedNodeId === bond.from && devs[bond.from]?.status === 'BLOCKED'));
 
-          // R3 Bond specification:
-          // Default: Visible line 1px, Opacity 10%, Arrow: NONE
-          // Focus: Line 1.5px, Opacity 55%, Arrow: YES
-          // Blocked: Line 1.5px, Red 75%
           let strokeColor = 'rgba(255, 255, 255, 0.10)';
           let strokeWidth = 1;
           let markerEnd: string | undefined = undefined;
 
-          if (isBlocked) {
+          if (isBlockedAndFocused) {
             strokeColor = 'rgba(236, 106, 106, 0.75)';
             strokeWidth = 1.5;
             markerEnd = 'url(#bond-arrow-blocked)';
@@ -286,31 +222,45 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
                 className="transition-colors duration-150"
               />
 
-              {/* Relationship label on Focus/Hover */}
+              {/* 3px Structural Anchors (Visible only when highlighted/focused) */}
+              <circle
+                cx={x1}
+                cy={y1}
+                r={1.5}
+                fill="#0B0B0C"
+                stroke="rgba(255, 255, 255, 0.4)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+                style={{ opacity: isHighlighted ? 1 : 0 }}
+                className="transition-opacity duration-150 pointer-events-none"
+              />
+              <circle
+                cx={x2}
+                cy={y2}
+                r={1.5}
+                fill="#0B0B0C"
+                stroke="rgba(255, 255, 255, 0.4)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+                style={{ opacity: isHighlighted ? 1 : 0 }}
+                className="transition-opacity duration-150 pointer-events-none"
+              />
+
+              {/* Relationship label on Focus/Hover: Direct text without rect box */}
               {isHighlighted && (
-                <g transform={`translate(${midX}, ${midY})`}>
-                  <rect
-                    x="-32"
-                    y="-9"
-                    width="64"
-                    height="18"
-                    rx="2"
-                    fill="#111113"
-                    stroke="rgba(255, 255, 255, 0.12)"
-                    strokeWidth="1"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                  <text
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fill="rgba(255, 255, 255, 0.75)"
-                    fontSize="8.5"
-                    fontFamily="monospace"
-                    fontWeight="500"
-                  >
-                    {bond.type}
-                  </text>
-                </g>
+                <text
+                  x={midX}
+                  y={midY - 5}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fill="rgba(255, 255, 255, 0.55)"
+                  fontSize="8.5"
+                  fontFamily="monospace"
+                  fontWeight="500"
+                  className="pointer-events-none select-none"
+                >
+                  {bond.type}
+                </text>
               )}
             </g>
           );
@@ -353,7 +303,7 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
               style={{ opacity: nodeOpacity }}
               className="cursor-pointer transition-opacity duration-150"
             >
-              {/* Invisible Hit Hex (r=52) guaranteeing generous touch/click target even at 0.5x zoom */}
+              {/* Invisible Hit Hex (r=52) */}
               <polygon
                 points={hitHexPoints}
                 fill="transparent"
@@ -453,6 +403,72 @@ export const ConstructionGraph: React.FC<ConstructionGraphProps> = ({
           );
         })}
       </svg>
-    </GraphViewport>
+
+      {/* 3. FOCUS ANNOTATION (220×136 Golden Rectangle with Rail Callout) */}
+      {selectedDev && (
+        <div 
+          className={`absolute ${annotationPlacementClass} w-[220px] h-[136px] z-20 pointer-events-auto flex font-sans select-none animate-in fade-in duration-150`}
+        >
+          {/* Structural Rail: ╲ and vertical line */}
+          <div className="flex flex-col items-center shrink-0 pr-2 text-[rgba(255,255,255,0.45)]">
+            <span className="text-[10px] leading-none font-mono">╲</span>
+            <span className="w-[1px] flex-1 bg-[rgba(255,255,255,0.2)] block mt-0.5" />
+          </div>
+
+          {/* Content container */}
+          <div className="flex-1 flex flex-col justify-between py-0.5 text-xs">
+            {/* Header */}
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-white font-semibold text-[11px]">{selectedDev.nodeId}</span>
+                <span className="text-[10px] font-mono text-[rgba(255,255,255,0.5)] yu-data">
+                  {selectedDev.status === 'RUNNING' ? '02:41' : selectedDev.status}
+                </span>
+              </div>
+              <div className="text-[11px] text-[rgba(255,255,255,0.7)] truncate">{selectedDev.title}</div>
+            </div>
+
+            {/* Diagnostic Lines */}
+            <div className="space-y-0.5 text-[10px] font-mono text-[rgba(255,255,255,0.65)] yu-data">
+              <div className="flex justify-between">
+                <span className="text-[rgba(255,255,255,0.35)]">{selectedDev.dependsOn[0] || 'DEV-039'}</span>
+                <span className="text-[rgba(255,255,255,0.4)]">UPSTREAM</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[rgba(255,255,255,0.35)]">AUTH-V2</span>
+                <span className="text-[rgba(255,255,255,0.4)]">CONTRACT</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[rgba(255,255,255,0.35)]">{selectedDev.currentRun?.runId || 'RUN-042-003'}</span>
+                <span className="text-[rgba(255,255,255,0.4)]">CURRENT</span>
+              </div>
+            </div>
+
+            {/* Actions (28px height hit targets) */}
+            <div className="flex items-center space-x-1.5 pt-1 border-t border-[rgba(255,255,255,0.06)]">
+              {onOpenEditor && (
+                <button
+                  onClick={() => onOpenEditor(selectedDev.nodeId)}
+                  className="h-7 flex-1 flex items-center justify-center space-x-1 px-2 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] active:bg-[rgba(255,255,255,0.12)] text-white rounded-xs border border-[rgba(255,255,255,0.08)] text-[10px] transition-colors cursor-pointer"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>Open DEV</span>
+                </button>
+              )}
+              {onViewEvidence && selectedDev.currentRun && (
+                <button
+                  onClick={() => onViewEvidence(selectedDev.nodeId)}
+                  className="h-7 flex-1 flex items-center justify-center space-x-1 px-2 bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] active:bg-[rgba(255,255,255,0.12)] text-[rgba(255,255,255,0.85)] rounded-xs border border-[rgba(255,255,255,0.08)] text-[10px] transition-colors cursor-pointer"
+                >
+                  <Eye className="w-3 h-3" />
+                  <span>Evidence</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
+
